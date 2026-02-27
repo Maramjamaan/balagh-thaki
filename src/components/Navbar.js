@@ -5,18 +5,20 @@ function Navbar() {
   const location = useLocation();
 
   const links = [
-    { to: '/', label: '📋 رفع بلاغ' },
-    { to: '/track', label: '🔍 تتبع بلاغي' },
-    { to: '/dashboard', label: '🗺️ لوحة التحكم' },
+    { to: '/', label: 'رفع بلاغ' },
+    { to: '/track', label: 'تتبع بلاغي' },
+    { to: '/dashboard', label: 'لوحة التحكم' },
   ];
 
   return (
     <nav style={styles.nav}>
-      <div style={styles.logo}>
-        <span style={styles.logoIcon}>🚨</span>
-        <span style={styles.logoText}>أولى</span>
-        <span style={styles.logoSub}>نظام البلاغات الذكي</span>
-      </div>
+      <Link to="/" style={styles.logoLink}>
+        <div style={styles.logoBox}>A</div>
+        <div>
+          <span style={styles.logoText}>Awla</span>
+          <span style={styles.logoSub}>بلاغ ذكي</span>
+        </div>
+      </Link>
       <div style={styles.links}>
         {links.map((link) => (
           <Link
@@ -40,25 +42,53 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px 40px',
-    background: 'linear-gradient(135deg, #1a5276, #2e86c1)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    padding: '12px 30px',
+    background: 'linear-gradient(135deg, #0a1a0a, #1B4D3E)',
+    borderBottom: '1px solid rgba(200,169,81,0.15)',
+    direction: 'rtl',
   },
-  logo: { display: 'flex', alignItems: 'center', gap: '10px' },
-  logoIcon: { fontSize: '28px' },
-  logoText: { fontSize: '24px', fontWeight: 'bold', color: 'white' },
-  logoSub: { fontSize: '12px', color: '#aed6f1', marginTop: '2px' },
-  links: { display: 'flex', gap: '8px' },
+  logoLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    textDecoration: 'none',
+  },
+  logoBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    background: 'linear-gradient(135deg, #C8A951, #1B4D3E)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  logoText: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#C8A951',
+    display: 'block',
+    lineHeight: 1,
+  },
+  logoSub: {
+    fontSize: '10px',
+    color: '#888',
+    display: 'block',
+  },
+  links: { display: 'flex', gap: '6px' },
   link: {
-    color: 'white',
+    color: '#999',
     textDecoration: 'none',
     padding: '8px 16px',
-    borderRadius: '20px',
-    fontSize: '14px',
-    transition: 'background 0.2s',
+    borderRadius: '10px',
+    fontSize: '13px',
+    transition: 'all 0.3s',
   },
   activeLink: {
-    background: 'rgba(255,255,255,0.2)',
+    background: 'rgba(200,169,81,0.15)',
+    color: '#C8A951',
     fontWeight: 'bold',
   },
 };
