@@ -1,75 +1,127 @@
 import { findNearestArea } from '../data/riyadhAreas';
 
-// === أوزان عوامل الأولوية ===
-const WEIGHTS = {
-  severity: 0.35,      // شدة المشكلة (35%)
-  population: 0.25,    // الكثافة السكانية (25%)
-  traffic: 0.20,       // حركة المرور (20%)
-  frequency: 0.20      // تكرار البلاغات (20%)
-};
+// =============================================
+// نظام الأولوية الذكية — مطابق للمستند التقني
+// المجموع من 100 نقطة + بونص 10 للحفريات المتأخرة
+// =============================================
 
-// === تحويل مستوى الشدة إلى رقم ===
-function severityToScore(severity) {
-  const scores = {
-    critical: 100,
-    high: 75,
-    medium: 50,
-    low: 25
-  };
-  return scores[severity] || 50;
+// === 1. شدة المشكلة (حد أقصى 25 نقطة) ===
+// الشدة من 1 إلى 5 × 5 = من 5 إلى 25
+function calcSeverity(severity) {
+  return severity * 5;
 }
 
-// === تحويل عدد السكان إلى سكور (0-100) ===
-function populationToScore(population) {
-  // أعلى حي ~95,000 نسمة
-  const maxPop = 100000;
-  return Math.min(Math.round((population / maxPop) * 100), 100);
+// === 2. الكثافة السكانية (حد أقصى 20 نقطة) ===
+function calcPopulation(population) {
+  const maxDensity = 100000;
+  return Math.min((population / maxDensity) * 20, 20);
 }
 
-// === حساب سكور التكرار ===
-// كل ما زادت البلاغات في نفس الحي ونفس النوع، زادت الأولوية
-function frequencyToScore(reportCount) {
-  if (reportCount >= 10) return 100;
-  if (reportCount >= 7) return 85;
-  if (reportCount >= 5) return 70;
-  if (reportCount >= 3) return 50;
-  if (reportCount >= 2) return 30;
-  return 10;
+// === 3. حركة المرور (حد أقصى 20 نقطة) ===
+function calcTraffic(trafficScore) {
+  // بيانات المرور في riyadhAreas من 0 إلى 100
+  // نحولها لحد أقصى 20
+  return Math.min((trafficScore / 100) * 20, 20);
+}
+
+// === 4. تكرار البلاغات (حد أقصى 15 نقطة) ===
+// كل بلاغ = 3 نقاط
+function calcFrequency(reportCount) {
+  return Math.min(reportCount * 3, 15);
+}
+
+// === 5. مدة المشكلة بدون حل (حد أقصى 10 نقاط) ===
+// كل يومين = نقطة
+function calcAge(daysOpen) {
+  return Math.min(daysOpen * 0.5, 10);
+}
+
+// === 6. قرب من مدارس/مستشفيات (حد أقصى 10 نقاط) ===
+// كل موقع حساس = 2.5 نقطة
+function calcProximity(nearbyCount) {
+  return Math.min(nearbyCount * 2.5, 10);
 }
 
 // === حساب الأولوية النهائية ===
-export function calculatePriority({ severity, latitude, longitude, reportCount = 1 }) {
-  // 1. سكور الشدة
-  const severityScore = severityToScore(severity);
-
-  // 2. البحث عن الحي الأقرب
+export function calculatePriority({
+  severity,
+  latitude,
+  longitude,
+  reportCount = 1,
+  daysOpen = 0,
+  nearbySchoolsHospitals = 1,
+  licenseExpired = false,
+  delayDays = 0
+}) {
+  // البحث عن الحي الأقرب
   const area = findNearestArea(latitude, longitude);
 
-  // 3. سكور السكان
-  const populationScore = area ? populationToScore(area.population) : 50;
+  // حساب كل عامل
+  const severityPoints = calcSeverity(severity);
+  const populationPoints = calcPopulation(area ? area.population : 50000);
+  const trafficPoints = calcTraffic(area ? area.traffic : 50);
+  const frequencyPoints = calcFrequency(reportCount);
+  const agePoints = calcAge(daysOpen);
+  const proximityPoints = calcProximity(nearbySchoolsHospitals);
 
-  // 4. سكور المرور
-  const trafficScore = area ? area.traffic : 50;
+  // المجموع الأساسي من 100
+  let totalScore =
+    severityPoints +
+    populationPoints +
+    trafficPoints +
+    frequencyPoints +
+    agePoints +
+    proximityPoints;
 
-  // 5. سكور التكرار
-  const frequencyScore = frequencyToScore(reportCount);
+  // بونص: حفرية متأخرة عن الترخيص (حد أقصى 10 إضافية)
+  let licenseBonus = 0;
+  if (licenseExpired && delayDays > 0) {
+    licenseBonus = Math.min(delayDays * 0.5, 10);
+    totalScore += licenseBonus;
+  }
 
-  // 6. حساب السكور النهائي
-  const finalScore = Math.round(
-    (severityScore * WEIGHTS.severity) +
-    (populationScore * WEIGHTS.population) +
-    (trafficScore * WEIGHTS.traffic) +
-    (frequencyScore * WEIGHTS.frequency)
-  );
+  const finalScore = Math.min(Math.round(totalScore), 100);
 
   return {
-    score: Math.min(finalScore, 100),
+    score: finalScore,
     level: getLevel(finalScore),
     breakdown: {
-      severity: { value: severity, score: severityScore, weight: '35%' },
-      population: { area: area?.name || 'غير محدد', score: populationScore, weight: '25%' },
-      traffic: { score: trafficScore, weight: '20%' },
-      frequency: { count: reportCount, score: frequencyScore, weight: '20%' }
+      severity: {
+        value: severity,
+        points: Math.round(severityPoints * 10) / 10,
+        max: 25,
+        weight: '25%'
+      },
+      population: {
+        area: area?.name || 'غير محدد',
+        points: Math.round(populationPoints * 10) / 10,
+        max: 20,
+        weight: '20%'
+      },
+      traffic: {
+        points: Math.round(trafficPoints * 10) / 10,
+        max: 20,
+        weight: '20%'
+      },
+      frequency: {
+        count: reportCount,
+        points: Math.round(frequencyPoints * 10) / 10,
+        max: 15,
+        weight: '15%'
+      },
+      age: {
+        days: daysOpen,
+        points: Math.round(agePoints * 10) / 10,
+        max: 10,
+        weight: '10%'
+      },
+      proximity: {
+        nearby: nearbySchoolsHospitals,
+        points: Math.round(proximityPoints * 10) / 10,
+        max: 10,
+        weight: '10%'
+      },
+      licenseBonus: Math.round(licenseBonus * 10) / 10
     }
   };
 }

@@ -7,7 +7,7 @@ import { calculatePriority } from './priorityService';
 async function uploadImage(imageFile) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
 
-  const { data, error } = await supabase.storage
+  const { error } = await supabase.storage
     .from('report-images')
     .upload(fileName, imageFile);
 
@@ -26,13 +26,13 @@ async function getReportCount(neighborhood, category) {
     .from('reports')
     .select('*', { count: 'exact', head: true })
     .eq('neighborhood', neighborhood)
-    .eq('category_name', category);
+    .eq('category', category);
 
   return count || 0;
 }
 
 // === إرسال بلاغ جديد (الدالة الرئيسية) ===
-export async function submitReport(imageFile, phone) {
+export async function submitReport(imageFile) {
   // 1. تحليل الصورة بالذكاء الاصطناعي
   const aiResult = await analyzeImage(imageFile);
 
@@ -41,7 +41,7 @@ export async function submitReport(imageFile, phone) {
   try {
     location = await getCurrentLocation();
   } catch {
-    // موقع افتراضي (وسط الرياض) لو المستخدم رفض GPS
+    // موقع افتراضي (وسط الرياض) لو المستخدم رفض تحديد الموقع
     location = {
       latitude: 24.7136,
       longitude: 46.6753,
@@ -50,14 +50,18 @@ export async function submitReport(imageFile, phone) {
   }
 
   // 3. حساب تكرار البلاغات
-  const reportCount = await getReportCount(location.neighborhood, aiResult.category_ar);
+  const reportCount = await getReportCount(location.neighborhood, aiResult.category);
 
   // 4. حساب الأولوية
   const priority = calculatePriority({
     severity: aiResult.severity,
     latitude: location.latitude,
     longitude: location.longitude,
-    reportCount: reportCount + 1
+    reportCount: reportCount + 1,
+    daysOpen: 0,
+    nearbySchoolsHospitals: 1,
+    licenseExpired: false,
+    delayDays: 0
   });
 
   // 5. رفع الصورة
@@ -72,20 +76,42 @@ export async function submitReport(imageFile, phone) {
   const { data, error } = await supabase
     .from('reports')
     .insert({
+      // الصورة
       image_url: imageUrl,
-      category_name: aiResult.category_ar,
-      description: aiResult.description_ar,
-      severity: aiResult.severity,
+
+      // التصنيف (جديد)
+      category: aiResult.category,
+      subcategory: aiResult.subcategory,
+      category_ar: aiResult.category_ar,
+      subcategory_ar: aiResult.subcategory_ar,
+
+      // الموقع
       latitude: location.latitude,
       longitude: location.longitude,
       neighborhood: location.neighborhood,
+
+      // الوصف
+      description: aiResult.description_ar,
+
+      // الذكاء الاصطناعي (جديد)
+      ai_classification: aiResult,
+      ai_severity: aiResult.severity,
+      ai_confidence: aiResult.confidence,
+
+      // الأولوية
       priority_score: priority.score,
-      status: 'pending',
-      reporter_phone: phone || null,
-      ai_analysis: {
-        ...aiResult,
-        priority_breakdown: priority.breakdown
-      }
+
+      // الحالة
+      status: 'new',
+
+      // الجهة المسؤولة (جديد)
+      responsible_entity: aiResult.responsible_entity,
+
+      // بيانات الحفرية (جديد)
+      excavation_stage: aiResult.excavation_stage,
+      has_safety_barriers: aiResult.has_safety_barriers,
+      has_visible_license: aiResult.has_visible_license,
+      blocks_traffic: aiResult.blocks_traffic,
     })
     .select()
     .single();
@@ -117,40 +143,107 @@ export async function getDashboardStats() {
     .from('reports')
     .select('*');
 
-  if (!reports) return null;
+  if (!reports || reports.length === 0) return null;
 
   const total = reports.length;
-  const pending = reports.filter(r => r.status === 'pending').length;
+  const newCount = reports.filter(r => r.status === 'new').length;
   const inProgress = reports.filter(r => r.status === 'in_progress').length;
   const resolved = reports.filter(r => r.status === 'resolved').length;
   const critical = reports.filter(r => r.priority_score >= 80).length;
-  const avgScore = total > 0 ? Math.round(reports.reduce((sum, r) => sum + r.priority_score, 0) / total) : 0;
+  const avgScore = Math.round(reports.reduce((sum, r) => sum + r.priority_score, 0) / total);
 
-  // أكثر الأحياء بلاغات
-  const byCat = {};
-  const byHood = {};
+  // إحصائيات حسب الفئة
+  const byCategory = {};
+  const byNeighborhood = {};
+  const byEntity = {};
+
   reports.forEach(r => {
-    byCat[r.category_name] = (byCat[r.category_name] || 0) + 1;
-    byHood[r.neighborhood] = (byHood[r.neighborhood] || 0) + 1;
+    // حسب الفئة
+    const cat = r.category_ar || r.category || 'غير مصنف';
+    byCategory[cat] = (byCategory[cat] || 0) + 1;
+
+    // حسب الحي
+    const hood = r.neighborhood || 'غير محدد';
+    byNeighborhood[hood] = (byNeighborhood[hood] || 0) + 1;
+
+    // حسب الجهة المسؤولة (جديد)
+    const entity = r.responsible_entity || 'غير محدد';
+    byEntity[entity] = (byEntity[entity] || 0) + 1;
   });
 
   return {
     total,
-    pending,
+    new: newCount,
+    pending: newCount,
     inProgress,
     resolved,
     critical,
     avgScore,
-    byCategory: byCat,
-    byNeighborhood: byHood
+    byCategory,
+    byNeighborhood,
+    byEntity
   };
+}
+
+// === جلب بيانات ترتيب الشركات — Leaderboard (جديد) ===
+export async function getLeaderboard() {
+  const { data: reports } = await supabase
+    .from('reports')
+    .select('responsible_entity, status, priority_score, created_at')
+    .eq('category', 'excavation');
+
+  if (!reports || reports.length === 0) return [];
+
+  // تجميع حسب الشركة
+  const entities = {};
+  reports.forEach(r => {
+    const name = r.responsible_entity || 'غير محدد';
+    if (!entities[name]) {
+      entities[name] = {
+        name,
+        total: 0,
+        resolved: 0,
+        pending: 0,
+        totalPriority: 0
+      };
+    }
+    entities[name].total++;
+    entities[name].totalPriority += r.priority_score;
+    if (r.status === 'resolved') {
+      entities[name].resolved++;
+    } else {
+      entities[name].pending++;
+    }
+  });
+
+  // حساب النسب والترتيب
+  const leaderboard = Object.values(entities).map(e => ({
+    ...e,
+    avgPriority: Math.round(e.totalPriority / e.total),
+    delayPercentage: Math.round((e.pending / e.total) * 100)
+  }));
+
+  // ترتيب من الأسوأ للأفضل
+  leaderboard.sort((a, b) => b.delayPercentage - a.delayPercentage);
+
+  return leaderboard;
 }
 
 // === تحديث حالة بلاغ ===
 export async function updateReportStatus(reportId, newStatus) {
+  const updateData = {
+    status: newStatus,
+    updated_at: new Date().toISOString()
+  };
+
+  // لو البلاغ انحل، سجل تاريخ الحل
+  if (newStatus === 'resolved') {
+    updateData.resolved_at = new Date().toISOString();
+  }
+
   const { data, error } = await supabase
     .from('reports')
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', reportId)
     .select()
     .single();
