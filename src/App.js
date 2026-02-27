@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import SubmitReport from './pages/SubmitReport';
 import TrackReport from './pages/TrackReport';
 import Dashboard from './pages/Dashboard';
+import MapPage from './pages/MapPage';
 import './App.css';
 
 function App() {
@@ -12,10 +13,11 @@ function App() {
     <Router>
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Navbar />
-        <main style={{ flex: 1 }}>
+        <main style={{ flex: 1, paddingBottom: 80 }}>
           <Routes>
             <Route path="/" element={<SubmitReport />} />
             <Route path="/track" element={<TrackReport />} />
+            <Route path="/map" element={<MapPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
           </Routes>
         </main>

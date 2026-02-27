@@ -2,51 +2,34 @@ import React from 'react';
 
 function Footer() {
   return (
-    <footer style={styles.footer}>
-      <div style={styles.row}>
-        <div style={styles.logoBox}>A</div>
-        <span style={styles.brand}>Awla</span>
-        <span style={styles.sep}>|</span>
-        <span style={styles.sub}>بلاغ ذكي</span>
+    <footer style={s.footer}>
+      <div style={s.row}>
+        <div style={s.logo}>أ</div>
+        <span style={s.brand}>أولى</span>
+        <span style={s.sep}>·</span>
+        <span style={s.sub}>بلاغ ذكي</span>
       </div>
-      <p style={styles.hack}>Vibe Coding Hackathon 2026</p>
-      <p style={styles.powered}>Powered by AI</p>
+      <p style={s.hack}>Vibe Coding Hackathon 2026</p>
     </footer>
   );
 }
 
-const styles = {
+const s = {
   footer: {
-    background: 'linear-gradient(135deg, #0a1a0a, #1B4D3E)',
-    borderTop: '1px solid rgba(200,169,81,0.1)',
-    padding: '20px',
-    textAlign: 'center',
-    direction: 'rtl',
+    borderTop: '1px solid rgba(0,0,0,0.04)', padding: 20,
+    textAlign: 'center', paddingBottom: 90, background: '#fff',
   },
-  row: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+  row: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 6 },
+  logo: {
+    width: 20, height: 20, borderRadius: 6,
+    background: 'linear-gradient(135deg, #006838, #00a65a)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 9, fontWeight: 800, color: '#fff',
   },
-  logoBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    background: 'linear-gradient(135deg, #C8A951, #1B4D3E)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  brand: { color: '#C8A951', fontSize: 14, fontWeight: 'bold' },
-  sep: { color: '#555', fontSize: 13 },
-  sub: { color: '#666', fontSize: 12 },
-  hack: { color: '#555', fontSize: 11, margin: 0 },
-  powered: { color: '#333', fontSize: 10, margin: '4px 0 0' },
+  brand: { color: 'var(--primary)', fontSize: 13, fontWeight: 700 },
+  sep: { color: 'var(--text-faint)', fontSize: 13 },
+  sub: { color: 'var(--text-faint)', fontSize: 11 },
+  hack: { color: 'var(--text-faint)', fontSize: 10, margin: 0, opacity: 0.6 },
 };
 
 export default Footer;

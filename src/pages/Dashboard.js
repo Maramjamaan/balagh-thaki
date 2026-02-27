@@ -1,265 +1,150 @@
 import React, { useState, useEffect } from 'react';
 import { getAllReports, getDashboardStats } from '../services/reportService';
-import { ENTITY_NAMES_AR, severityToArabic, severityColor } from '../services/aiService';
+import { ENTITY_NAMES_AR } from '../services/aiService';
 
 function Dashboard() {
   const [reports, setReports] = useState([]);
   const [stats, setStats] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [catFilter, setCatFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('reports'); // reports أو leaderboard
+  const [tab, setTab] = useState('reports');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  useEffect(() => { loadData(); }, []);
   const loadData = async () => {
-    try {
-      const [r, s] = await Promise.all([getAllReports(), getDashboardStats()]);
-      setReports(r || []);
-      setStats(s);
-    } catch (err) {
-      console.error(err);
-    }
+    try { const [r, s] = await Promise.all([getAllReports(), getDashboardStats()]); setReports(r || []); setStats(s); } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  // فلاتر الأولوية
-  const priorityFilters = [
-    { id: 'all', label: 'الكل' },
-    { id: 'critical', label: 'حرج' },
-    { id: 'high', label: 'مرتفع' },
-    { id: 'medium', label: 'متوسط' },
-    { id: 'low', label: 'منخفض' },
-  ];
-
-  // فلاتر الفئات
-  const categoryFilters = [
-    { id: 'all', label: 'الكل', icon: '📋' },
-    { id: 'excavation', label: 'حفريات', icon: '🚧' },
-    { id: 'traffic', label: 'مرورية', icon: '🚦' },
-    { id: 'water_leak,lighting,sidewalk,road_damage,debris', label: 'بنية تحتية', icon: '🔧' },
-    { id: 'suggestion', label: 'اقتراحات', icon: '💡' },
-  ];
-
-  // تطبيق الفلاتر
   const filtered = reports.filter(r => {
-    // فلتر الأولوية
     if (filter !== 'all') {
       if (filter === 'critical' && r.priority_score < 80) return false;
       if (filter === 'high' && (r.priority_score < 60 || r.priority_score >= 80)) return false;
       if (filter === 'medium' && (r.priority_score < 40 || r.priority_score >= 60)) return false;
       if (filter === 'low' && r.priority_score >= 40) return false;
     }
-    // فلتر الفئة
-    if (categoryFilter !== 'all') {
-      const cats = categoryFilter.split(',');
-      if (!cats.includes(r.category)) return false;
-    }
+    if (catFilter !== 'all' && !catFilter.split(',').includes(r.category)) return false;
     return true;
   });
 
-  const pColor = (s) => s >= 80 ? '#DC2626' : s >= 60 ? '#F97316' : s >= 40 ? '#EAB308' : '#22C55E';
-  const statusAr = { pending: 'بانتظار', in_progress: 'قيد المعالجة', resolved: 'تم الحل' };
+  const pColor = (s) => s >= 80 ? '#DC2626' : s >= 60 ? '#F97316' : s >= 40 ? '#D4A017' : '#006838';
+  const statusAr = { new: 'جديد', pending: 'بانتظار', in_progress: 'قيد المعالجة', resolved: 'تم الحل' };
 
-  // ترتيب الشركات للـ Leaderboard
   const getLeaderboard = () => {
-    if (!stats || !stats.byEntity) return [];
-    return Object.entries(stats.byEntity)
-      .map(([entity, data]) => ({
-        entity,
-        entityAr: ENTITY_NAMES_AR[entity] || entity,
-        total: data.total,
-        pending: data.pending,
-        resolved: data.resolved,
-        resolveRate: data.total > 0 ? Math.round((data.resolved / data.total) * 100) : 0,
-        delayRate: data.total > 0 ? Math.round((data.pending / data.total) * 100) : 0,
-      }))
-      .filter(e => e.entity !== 'غير محدد')
-      .sort((a, b) => b.delayRate - a.delayRate);
+    if (!reports.length) return [];
+    const ent = {};
+    reports.forEach(r => { const e = r.responsible_entity; if (!e || e === 'غير محدد') return; if (!ent[e]) ent[e] = { entity: e, total: 0, pending: 0, resolved: 0 }; ent[e].total++; r.status === 'resolved' ? ent[e].resolved++ : ent[e].pending++; });
+    return Object.values(ent).map(e => ({ ...e, entityAr: ENTITY_NAMES_AR[e.entity] || e.entity, resolveRate: e.total > 0 ? Math.round((e.resolved / e.total) * 100) : 0, delayRate: e.total > 0 ? Math.round((e.pending / e.total) * 100) : 0 })).sort((a, b) => b.delayRate - a.delayRate);
   };
 
   if (loading) return (
-    <div style={{ ...styles.container, textAlign: 'center', paddingTop: 80 }}>
-      <p style={{ color: '#888' }}>جاري تحميل البيانات...</p>
+    <div style={{ ...s.page, textAlign: 'center', paddingTop: 100 }}>
+      <div style={{ width: 40, height: 40, border: '3px solid rgba(0,104,56,0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: 'var(--text-dim)', marginTop: 16 }}>جاري تحميل البيانات...</p>
     </div>
   );
 
   return (
-    <div style={styles.container}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ color: '#fff', fontSize: 22 }}>لوحة التحكم</h2>
-        <p style={{ color: '#888', fontSize: 13, marginTop: 6 }}>البلاغات مرتبة تلقائياً حسب الأولوية</p>
+    <div style={s.page}>
+      <div style={{ marginBottom: 20 }} className="fade-up">
+        <h2 style={{ color: 'var(--primary)', fontSize: 22, fontWeight: 800 }}>لوحة التحكم</h2>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 4 }}>مرتبة تلقائياً حسب الأولوية الذكية</p>
       </div>
 
-      {/* الإحصائيات */}
       {stats && (
-        <div style={styles.statsGrid}>
+        <div style={s.statsGrid} className="fade-up">
           {[
-            { label: 'إجمالي', value: stats.total, color: '#C8A951' },
-            { label: 'بانتظار', value: stats.pending, color: '#F97316' },
-            { label: 'تم الحل', value: stats.resolved, color: '#22C55E' },
-            { label: 'حرجة', value: stats.critical, color: '#DC2626' },
-          ].map((s, i) => (
-            <div key={i} style={styles.statCard}>
-              <div style={{ fontSize: 26, fontWeight: 'bold', color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{s.label}</div>
+            { label: 'إجمالي', value: stats.total, color: 'var(--primary)', icon: '📊' },
+            { label: 'بانتظار', value: stats.pending, color: 'var(--orange)', icon: '⏳' },
+            { label: 'تم الحل', value: stats.resolved, color: 'var(--green)', icon: '✅' },
+            { label: 'حرجة', value: stats.critical, color: 'var(--red)', icon: '🔴' },
+          ].map((item, i) => (
+            <div key={i} className="glass" style={{ padding: '14px 8px', textAlign: 'center' }}>
+              <span style={{ fontSize: 16 }}>{item.icon}</span>
+              <div style={{ fontSize: 24, fontWeight: 800, color: item.color, marginTop: 4 }}>{item.value}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2 }}>{item.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* تبويبات: بلاغات / ترتيب الشركات */}
-      <div style={styles.tabsContainer}>
-        <button
-          onClick={() => setActiveTab('reports')}
-          style={{ ...styles.tab, ...(activeTab === 'reports' ? styles.activeTab : {}) }}>
-          البلاغات ({filtered.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('leaderboard')}
-          style={{ ...styles.tab, ...(activeTab === 'leaderboard' ? styles.activeTab : {}) }}>
-          ترتيب الشركات
-        </button>
+      <div style={s.tabs} className="fade-up">
+        {[['reports', `البلاغات (${filtered.length})`], ['leaderboard', 'ترتيب الشركات']].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ ...s.tabBtn, ...(tab === id ? s.tabActive : {}) }}>{label}</button>
+        ))}
       </div>
 
-      {/* محتوى التبويب */}
-      {activeTab === 'reports' ? (
+      {tab === 'reports' ? (
         <>
-          {/* فلاتر الفئات */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
-            {categoryFilters.map(f => (
-              <button key={f.id} onClick={() => setCategoryFilter(f.id)}
-                style={{
-                  ...styles.filterBtn,
-                  background: categoryFilter === f.id ? 'rgba(200,169,81,0.2)' : 'rgba(255,255,255,0.05)',
-                  color: categoryFilter === f.id ? '#C8A951' : '#888',
-                  fontWeight: categoryFilter === f.id ? 'bold' : 'normal',
-                  whiteSpace: 'nowrap',
-                }}>
-                {f.icon} {f.label}
-              </button>
+          <div style={s.filterRow} className="fade-up">
+            {[{ id: 'all', label: 'الكل', icon: '📋' }, { id: 'excavation', label: 'حفريات', icon: '🚧' }, { id: 'traffic', label: 'مرورية', icon: '🚦' }, { id: 'water_leak,lighting,sidewalk,road_damage,debris', label: 'بنية تحتية', icon: '🔧' }, { id: 'suggestion', label: 'اقتراحات', icon: '💡' }].map(f => (
+              <button key={f.id} onClick={() => setCatFilter(f.id)}
+                style={{ ...s.filterBtn, ...(catFilter === f.id ? s.filterActive : {}) }}>{f.icon} {f.label}</button>
+            ))}
+          </div>
+          <div style={{ ...s.filterRow, marginBottom: 16 }} className="fade-up">
+            {[['all', 'الكل'], ['critical', 'حرج'], ['high', 'مرتفع'], ['medium', 'متوسط'], ['low', 'منخفض']].map(([id, label]) => (
+              <button key={id} onClick={() => setFilter(id)}
+                style={{ ...s.filterBtn, ...(filter === id ? s.filterActive : {}) }}>{label}</button>
             ))}
           </div>
 
-          {/* فلاتر الأولوية */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-            {priorityFilters.map(f => (
-              <button key={f.id} onClick={() => setFilter(f.id)}
-                style={{
-                  ...styles.filterBtn,
-                  background: filter === f.id ? 'rgba(200,169,81,0.2)' : 'rgba(255,255,255,0.05)',
-                  color: filter === f.id ? '#C8A951' : '#888',
-                  fontWeight: filter === f.id ? 'bold' : 'normal',
-                }}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {/* قائمة البلاغات */}
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#555' }}>
-              <p style={{ fontSize: 28, marginBottom: 8 }}>&#8709;</p>
-              <p>لا توجد بلاغات</p>
-            </div>
+            <div style={{ textAlign: 'center', padding: 50, color: 'var(--text-faint)' }}><p style={{ fontSize: 32, marginBottom: 8 }}>📭</p><p>لا توجد بلاغات</p></div>
           ) : (
-            filtered.map((r) => (
-              <div key={r.id} style={{ ...styles.reportCard, borderRight: `4px solid ${pColor(r.priority_score)}` }}>
+            filtered.map((r, i) => (
+              <div key={r.id} className="glass fade-up"
+                style={{ padding: 16, marginBottom: 10, borderRight: `4px solid ${pColor(r.priority_score)}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>
-                    {r.category_ar || r.category || 'غير مصنف'}
-                  </span>
-                  <div style={{
-                    background: `${pColor(r.priority_score)}15`,
-                    padding: '4px 10px',
-                    borderRadius: 8,
-                    color: pColor(r.priority_score),
-                    fontSize: 13,
-                    fontWeight: 'bold'
-                  }}>
-                    {r.priority_score}/100
-                  </div>
+                  <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: 14 }}>{r.category_ar || r.category || 'غير مصنف'}</span>
+                  <div style={{ background: `${pColor(r.priority_score)}15`, padding: '4px 10px', borderRadius: 10, color: pColor(r.priority_score), fontSize: 13, fontWeight: 800 }}>{r.priority_score}</div>
                 </div>
-
-                {/* الجهة المسؤولة */}
                 {r.responsible_entity && (
-                  <div style={{
-                    display: 'inline-block',
-                    background: 'rgba(59,130,246,0.1)',
-                    color: '#3B82F6',
-                    padding: '2px 8px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    marginBottom: 8
-                  }}>
+                  <span style={{ display: 'inline-block', background: 'rgba(43,125,233,0.06)', color: 'var(--blue)', padding: '2px 8px', borderRadius: 8, fontSize: 10, marginBottom: 8 }}>
                     {ENTITY_NAMES_AR[r.responsible_entity] || r.responsible_entity}
-                  </div>
-                )}
-
-                <p style={{ color: '#999', fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
-                  {r.description || ''}
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#555' }}>
-                  <span>{r.neighborhood || 'غير محدد'}</span>
-                  <span style={{
-                    color: r.status === 'resolved' ? '#22C55E' : r.status === 'in_progress' ? '#3B82F6' : '#F97316',
-                    background: r.status === 'resolved' ? 'rgba(34,197,94,0.1)' : r.status === 'in_progress' ? 'rgba(59,130,246,0.1)' : 'rgba(249,115,22,0.1)',
-                    padding: '2px 8px',
-                    borderRadius: 6
-                  }}>
-                    {statusAr[r.status] || r.status}
                   </span>
+                )}
+                {r.description && <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 10px', lineHeight: 1.6 }}>{r.description}</p>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-faint)' }}>
+                  <span>{r.neighborhood || ''}</span>
+                  <span style={{
+                    color: r.status === 'resolved' ? 'var(--green)' : 'var(--orange)',
+                    background: r.status === 'resolved' ? 'rgba(0,104,56,0.06)' : 'rgba(249,115,22,0.06)',
+                    padding: '2px 8px', borderRadius: 8,
+                  }}>{statusAr[r.status] || r.status}</span>
                 </div>
               </div>
             ))
           )}
         </>
       ) : (
-        /* ترتيب الشركات */
         <>
-          <p style={{ color: '#888', fontSize: 12, marginBottom: 16 }}>
-            ترتيب شركات الخدمات حسب نسبة التأخير — الأعلى تأخيراً في الأعلى
-          </p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 16 }}>ترتيب الشركات حسب نسبة التأخير</p>
           {getLeaderboard().length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#555' }}>
-              <p>لا توجد بيانات كافية</p>
-            </div>
+            <div style={{ textAlign: 'center', padding: 50, color: 'var(--text-faint)' }}><p>أرسلي بلاغات أولاً</p></div>
           ) : (
-            getLeaderboard().map((company, i) => (
-              <div key={company.entity} style={styles.leaderCard}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            getLeaderboard().map((c, i) => (
+              <div key={c.entity} className="glass fade-up" style={{ padding: 16, marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{
-                      ...styles.rankBadge,
-                      background: i === 0 ? 'rgba(220,38,38,0.2)' : i === 1 ? 'rgba(249,115,22,0.2)' : 'rgba(200,169,81,0.1)',
-                      color: i === 0 ? '#DC2626' : i === 1 ? '#F97316' : '#C8A951',
-                    }}>
-                      #{i + 1}
-                    </div>
-                    <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>{company.entityAr}</span>
+                      width: 34, height: 34, borderRadius: 10,
+                      background: i === 0 ? 'rgba(220,38,38,0.08)' : i === 1 ? 'rgba(249,115,22,0.08)' : 'var(--primary-light)',
+                      color: i === 0 ? 'var(--red)' : i === 1 ? 'var(--orange)' : 'var(--primary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800,
+                    }}>#{i + 1}</div>
+                    <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14 }}>{c.entityAr}</span>
                   </div>
-                  <span style={{ color: '#DC2626', fontSize: 13, fontWeight: 'bold' }}>
-                    {company.delayRate}% تأخير
-                  </span>
+                  <span style={{ color: 'var(--red)', fontSize: 13, fontWeight: 800 }}>{c.delayRate}%</span>
                 </div>
-
-                {/* شريط التقدم */}
-                <div style={styles.progressBg}>
-                  <div style={{
-                    height: '100%',
-                    borderRadius: 6,
-                    width: `${company.resolveRate}%`,
-                    background: company.resolveRate >= 70 ? '#22C55E' : company.resolveRate >= 40 ? '#EAB308' : '#DC2626',
-                    transition: 'width 1s ease'
-                  }} />
+                <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 6, height: 6, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 6, width: `${c.resolveRate}%`, background: c.resolveRate >= 70 ? 'var(--green)' : c.resolveRate >= 40 ? 'var(--yellow)' : 'var(--red)', transition: 'width 1.2s ease' }} />
                 </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: '#666' }}>
-                  <span>إجمالي: {company.total}</span>
-                  <span style={{ color: '#F97316' }}>معلقة: {company.pending}</span>
-                  <span style={{ color: '#22C55E' }}>منجزة: {company.resolved}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--text-faint)' }}>
+                  <span>إجمالي: {c.total}</span>
+                  <span style={{ color: 'var(--orange)' }}>معلقة: {c.pending}</span>
+                  <span style={{ color: 'var(--green)' }}>منجزة: {c.resolved}</span>
                 </div>
               </div>
             ))
@@ -270,89 +155,15 @@ function Dashboard() {
   );
 }
 
-const styles = {
-  container: {
-    padding: '20px 16px',
-    direction: 'rtl',
-    maxWidth: 600,
-    margin: '0 auto',
-    background: '#050d05',
-    minHeight: 'calc(100vh - 140px)'
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr 1fr',
-    gap: 8,
-    marginBottom: 20
-  },
-  statCard: {
-    background: 'rgba(27,77,62,0.15)',
-    borderRadius: 12,
-    padding: '14px 8px',
-    textAlign: 'center',
-    border: '1px solid rgba(200,169,81,0.06)'
-  },
-  tabsContainer: {
-    display: 'flex',
-    gap: 0,
-    marginBottom: 16,
-    background: 'rgba(255,255,255,0.03)',
-    borderRadius: 12,
-    padding: 3,
-  },
-  tab: {
-    flex: 1,
-    padding: '10px 16px',
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontSize: 13,
-    background: 'transparent',
-    color: '#888',
-    transition: 'all 0.3s',
-  },
-  activeTab: {
-    background: 'rgba(200,169,81,0.15)',
-    color: '#C8A951',
-    fontWeight: 'bold',
-  },
-  filterBtn: {
-    padding: '6px 12px',
-    borderRadius: 8,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 12,
-  },
-  reportCard: {
-    background: 'rgba(27,77,62,0.15)',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    border: '1px solid rgba(200,169,81,0.06)',
-  },
-  leaderCard: {
-    background: 'rgba(27,77,62,0.15)',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    border: '1px solid rgba(200,169,81,0.06)',
-  },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  progressBg: {
-    background: 'rgba(255,255,255,0.05)',
-    borderRadius: 6,
-    height: 6,
-    overflow: 'hidden'
-  },
+const s = {
+  page: { padding: '20px 16px', maxWidth: 600, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
+  statsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 20 },
+  tabs: { display: 'flex', marginBottom: 16, background: '#fff', borderRadius: 14, padding: 3, border: '1px solid rgba(0,0,0,0.04)' },
+  tabBtn: { flex: 1, padding: '10px 16px', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 13, background: 'transparent', color: 'var(--text-dim)', fontFamily: 'Tajawal' },
+  tabActive: { background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 },
+  filterRow: { display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 },
+  filterBtn: { padding: '6px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap', background: '#fff', color: 'var(--text-dim)', fontFamily: 'Tajawal', boxShadow: '0 1px 4px rgba(0,0,0,0.03)' },
+  filterActive: { background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 },
 };
 
 export default Dashboard;

@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import { ENTITY_NAMES_AR } from '../services/aiService';
 import 'leaflet/dist/leaflet.css';
 
-// === بيانات تجريبية للحفريات ===
 const MOCK_EXCAVATIONS = [
   { id: 1, company: 'NWC', type: 'مياه', street: 'طريق الملك فهد', neighborhood: 'العليا', lat: 24.6900, lng: 46.6850, permitDate: '2025-12-01', permitDays: 30 },
   { id: 2, company: 'NWC', type: 'صرف', street: 'شارع التحلية', neighborhood: 'السليمانية', lat: 24.6950, lng: 46.6750, permitDate: '2025-12-15', permitDays: 60 },
@@ -27,7 +26,6 @@ const MOCK_EXCAVATIONS = [
   { id: 20, company: 'NWC', type: 'مياه', street: 'شارع الربيع', neighborhood: 'الربيع', lat: 24.8100, lng: 46.6500, permitDate: '2026-01-08', permitDays: 45 },
 ];
 
-// === حساب التأخير ===
 function processExcavations(data) {
   const now = new Date();
   return data.map(ex => {
@@ -36,18 +34,11 @@ function processExcavations(data) {
     const diffMs = now - permitEnd;
     const delayDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const remainingDays = -delayDays;
-
     let color, statusAr;
-    if (delayDays > 30) {
-      color = '#DC2626'; statusAr = 'متأخرة جداً';
-    } else if (delayDays > 0) {
-      color = '#F97316'; statusAr = 'متأخرة';
-    } else if (remainingDays <= 7) {
-      color = '#EAB308'; statusAr = 'قاربت على الانتهاء';
-    } else {
-      color = '#22C55E'; statusAr = 'في الموعد';
-    }
-
+    if (delayDays > 30) { color = '#DC2626'; statusAr = 'متأخرة جداً'; }
+    else if (delayDays > 0) { color = '#F97316'; statusAr = 'متأخرة'; }
+    else if (remainingDays <= 7) { color = '#D4A017'; statusAr = 'قاربت على الانتهاء'; }
+    else { color = '#006838'; statusAr = 'في الموعد'; }
     return { ...ex, delayDays, remainingDays, color, statusAr, permitEnd };
   }).sort((a, b) => b.delayDays - a.delayDays);
 }
@@ -56,13 +47,10 @@ function MapPage() {
   const [excavations, setExcavations] = useState([]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [view, setView] = useState('map'); // map أو list
+  const [view, setView] = useState('map');
 
-  useEffect(() => {
-    setExcavations(processExcavations(MOCK_EXCAVATIONS));
-  }, []);
+  useEffect(() => { setExcavations(processExcavations(MOCK_EXCAVATIONS)); }, []);
 
-  // فلترة
   const filtered = excavations.filter(ex => {
     if (companyFilter !== 'all' && ex.company !== companyFilter) return false;
     if (statusFilter === 'overdue' && ex.delayDays <= 0) return false;
@@ -70,14 +58,11 @@ function MapPage() {
     return true;
   });
 
-  // إحصائيات
   const totalOverdue = excavations.filter(e => e.delayDays > 0).length;
   const totalActive = excavations.filter(e => e.delayDays <= 0).length;
   const worstCompany = (() => {
     const counts = {};
-    excavations.filter(e => e.delayDays > 0).forEach(e => {
-      counts[e.company] = (counts[e.company] || 0) + 1;
-    });
+    excavations.filter(e => e.delayDays > 0).forEach(e => { counts[e.company] = (counts[e.company] || 0) + 1; });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return sorted[0] ? `${ENTITY_NAMES_AR[sorted[0][0]]} (${sorted[0][1]})` : '-';
   })();
@@ -85,118 +70,77 @@ function MapPage() {
   const companies = ['all', 'NWC', 'SEC', 'STC', 'Mobily', 'Zain'];
 
   return (
-    <div style={styles.container}>
-      {/* العنوان */}
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ color: '#fff', fontSize: 22 }}>خريطة الحفريات</h2>
-        <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>مراقبة الحفريات النشطة والمتأخرة في الرياض</p>
-        <div style={styles.mockBadge}>بيانات تجريبية — مصمم للربط مع منصة نسق</div>
+    <div style={s.page}>
+      <div style={{ marginBottom: 16 }} className="fade-up">
+        <h2 style={{ color: 'var(--primary)', fontSize: 22, fontWeight: 800 }}>خريطة الحفريات</h2>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 4 }}>مراقبة الحفريات النشطة والمتأخرة في الرياض</p>
+        <div style={s.mockBadge}>بيانات تجريبية — مصمم للربط مع منصة نسق</div>
       </div>
 
-      {/* إحصائيات */}
-      <div style={styles.statsRow}>
-        <div style={{ ...styles.miniStat, borderColor: '#DC2626' }}>
-          <span style={{ fontSize: 22, fontWeight: 'bold', color: '#DC2626' }}>{totalOverdue}</span>
-          <span style={{ fontSize: 10, color: '#888' }}>متأخرة</span>
+      {/* Stats */}
+      <div style={s.statsRow} className="fade-up">
+        <div className="glass" style={{ ...s.miniStat, borderBottomColor: '#DC2626' }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: '#DC2626' }}>{totalOverdue}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>متأخرة</span>
         </div>
-        <div style={{ ...styles.miniStat, borderColor: '#22C55E' }}>
-          <span style={{ fontSize: 22, fontWeight: 'bold', color: '#22C55E' }}>{totalActive}</span>
-          <span style={{ fontSize: 10, color: '#888' }}>في الموعد</span>
+        <div className="glass" style={{ ...s.miniStat, borderBottomColor: '#006838' }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: '#006838' }}>{totalActive}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>في الموعد</span>
         </div>
-        <div style={{ ...styles.miniStat, borderColor: '#F97316' }}>
-          <span style={{ fontSize: 22, fontWeight: 'bold', color: '#F97316' }}>{excavations.length}</span>
-          <span style={{ fontSize: 10, color: '#888' }}>إجمالي</span>
+        <div className="glass" style={{ ...s.miniStat, borderBottomColor: '#F97316' }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: '#F97316' }}>{excavations.length}</span>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>إجمالي</span>
         </div>
       </div>
 
-      {/* أكثر شركة تأخيراً */}
-      <div style={styles.worstBox}>
-        <span style={{ color: '#888', fontSize: 12 }}>أكثر شركة تأخيراً:</span>
-        <span style={{ color: '#DC2626', fontSize: 13, fontWeight: 'bold' }}> {worstCompany}</span>
+      {/* Worst company */}
+      <div style={s.worstBox} className="fade-up">
+        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>أكثر شركة تأخيراً:</span>
+        <span style={{ color: '#DC2626', fontSize: 13, fontWeight: 800 }}> {worstCompany}</span>
       </div>
 
-      {/* تبديل عرض خريطة / قائمة */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+      {/* View toggle */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }} className="fade-up">
         <button onClick={() => setView('map')}
-          style={{ ...styles.viewBtn, background: view === 'map' ? 'rgba(200,169,81,0.2)' : 'rgba(255,255,255,0.05)', color: view === 'map' ? '#C8A951' : '#888' }}>
-          🗺️ خريطة
-        </button>
+          style={{ ...s.viewBtn, ...(view === 'map' ? s.viewActive : {}) }}>🗺️ خريطة</button>
         <button onClick={() => setView('list')}
-          style={{ ...styles.viewBtn, background: view === 'list' ? 'rgba(200,169,81,0.2)' : 'rgba(255,255,255,0.05)', color: view === 'list' ? '#C8A951' : '#888' }}>
-          📋 قائمة
-        </button>
+          style={{ ...s.viewBtn, ...(view === 'list' ? s.viewActive : {}) }}>📋 قائمة</button>
       </div>
 
-      {/* فلاتر الشركات */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
+      {/* Company filters */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }} className="fade-up">
         {companies.map(c => (
           <button key={c} onClick={() => setCompanyFilter(c)}
-            style={{
-              ...styles.filterBtn,
-              background: companyFilter === c ? 'rgba(200,169,81,0.2)' : 'rgba(255,255,255,0.05)',
-              color: companyFilter === c ? '#C8A951' : '#888',
-              fontWeight: companyFilter === c ? 'bold' : 'normal',
-              whiteSpace: 'nowrap',
-            }}>
+            style={{ ...s.filterBtn, ...(companyFilter === c ? s.filterActive : {}) }}>
             {c === 'all' ? 'الكل' : ENTITY_NAMES_AR[c] || c}
           </button>
         ))}
       </div>
 
-      {/* فلتر الحالة */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-        {[
-          { id: 'all', label: 'الكل' },
-          { id: 'overdue', label: 'متأخرة فقط' },
-          { id: 'active', label: 'في الموعد' },
-        ].map(f => (
+      {/* Status filter */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }} className="fade-up">
+        {[{ id: 'all', label: 'الكل' }, { id: 'overdue', label: 'متأخرة فقط' }, { id: 'active', label: 'في الموعد' }].map(f => (
           <button key={f.id} onClick={() => setStatusFilter(f.id)}
-            style={{
-              ...styles.filterBtn,
-              background: statusFilter === f.id ? 'rgba(200,169,81,0.2)' : 'rgba(255,255,255,0.05)',
-              color: statusFilter === f.id ? '#C8A951' : '#888',
-              fontWeight: statusFilter === f.id ? 'bold' : 'normal',
-            }}>
-            {f.label}
-          </button>
+            style={{ ...s.filterBtn, ...(statusFilter === f.id ? s.filterActive : {}) }}>{f.label}</button>
         ))}
       </div>
 
-      {/* === الخريطة === */}
+      {/* Map */}
       {view === 'map' && (
-        <div style={styles.mapWrapper}>
-          <MapContainer
-            center={[24.7136, 46.6753]}
-            zoom={11}
-            style={{ height: '100%', width: '100%', borderRadius: 14 }}
-            scrollWheelZoom={true}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; OpenStreetMap'
-            />
+        <div style={s.mapWrapper} className="fade-up">
+          <MapContainer center={[24.7136, 46.6753]} zoom={11} style={{ height: '100%', width: '100%', borderRadius: 16 }} scrollWheelZoom={true}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
             {filtered.map(ex => (
-              <CircleMarker
-                key={ex.id}
-                center={[ex.lat, ex.lng]}
+              <CircleMarker key={ex.id} center={[ex.lat, ex.lng]}
                 radius={ex.delayDays > 30 ? 14 : ex.delayDays > 0 ? 11 : 8}
-                fillColor={ex.color}
-                color={ex.color}
-                weight={2}
-                opacity={0.9}
-                fillOpacity={0.6}
-              >
+                fillColor={ex.color} color={ex.color} weight={2} opacity={0.9} fillOpacity={0.6}>
                 <Popup>
-                  <div style={{ direction: 'rtl', fontFamily: 'Arial', minWidth: 180 }}>
-                    <p style={{ fontWeight: 'bold', fontSize: 14, margin: '0 0 6px', color: '#333' }}>{ex.street}</p>
+                  <div style={{ direction: 'rtl', fontFamily: 'Tajawal', minWidth: 180 }}>
+                    <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 6px', color: '#006838' }}>{ex.street}</p>
                     <p style={{ fontSize: 12, color: '#666', margin: '0 0 4px' }}>{ex.neighborhood}</p>
-                    <p style={{ fontSize: 12, margin: '0 0 4px' }}>
-                      <strong>الشركة:</strong> {ENTITY_NAMES_AR[ex.company]}
-                    </p>
-                    <p style={{ fontSize: 12, margin: '0 0 4px' }}>
-                      <strong>النوع:</strong> {ex.type}
-                    </p>
-                    <p style={{ fontSize: 13, fontWeight: 'bold', margin: '8px 0 0', color: ex.color }}>
+                    <p style={{ fontSize: 12, margin: '0 0 4px', color: '#333' }}><strong>الشركة:</strong> {ENTITY_NAMES_AR[ex.company]}</p>
+                    <p style={{ fontSize: 12, margin: '0 0 4px', color: '#333' }}><strong>النوع:</strong> {ex.type}</p>
+                    <p style={{ fontSize: 13, fontWeight: 700, margin: '8px 0 0', color: ex.color }}>
                       {ex.delayDays > 0 ? `متأخرة ${ex.delayDays} يوم` : `باقي ${ex.remainingDays} يوم`}
                     </p>
                   </div>
@@ -205,51 +149,43 @@ function MapPage() {
             ))}
           </MapContainer>
 
-          {/* مفتاح الألوان */}
-          <div style={styles.legend}>
-            <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: '#DC2626' }} /> متأخرة جداً</span>
-            <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: '#F97316' }} /> متأخرة</span>
-            <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: '#EAB308' }} /> قاربت</span>
-            <span style={styles.legendItem}><span style={{ ...styles.legendDot, background: '#22C55E' }} /> في الموعد</span>
+          {/* Legend */}
+          <div style={s.legend}>
+            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#DC2626' }} /> متأخرة جداً</span>
+            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#F97316' }} /> متأخرة</span>
+            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#D4A017' }} /> قاربت</span>
+            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#006838' }} /> في الموعد</span>
           </div>
         </div>
       )}
 
-      {/* === القائمة === */}
+      {/* List */}
       {view === 'list' && (
         <div>
           {filtered.map(ex => (
-            <div key={ex.id} style={{ ...styles.exCard, borderRight: `4px solid ${ex.color}` }}>
+            <div key={ex.id} className="glass fade-up" style={{ padding: 16, marginBottom: 10, borderRight: `4px solid ${ex.color}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <div>
-                  <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>{ex.street}</span>
-                  <span style={{ color: '#666', fontSize: 12, display: 'block', marginTop: 2 }}>{ex.neighborhood}</span>
+                  <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: 14 }}>{ex.street}</span>
+                  <span style={{ color: 'var(--text-faint)', fontSize: 12, display: 'block', marginTop: 2 }}>{ex.neighborhood}</span>
                 </div>
-                <div style={{ ...styles.countdown, background: `${ex.color}15`, color: ex.color }}>
+                <div style={{ ...s.countdown, background: `${ex.color}10`, color: ex.color }}>
                   {ex.delayDays > 0 ? (
-                    <>
-                      <span style={{ fontSize: 18, fontWeight: 'bold' }}>+{ex.delayDays}</span>
-                      <span style={{ fontSize: 9 }}>يوم تأخير</span>
-                    </>
+                    <><span style={{ fontSize: 18, fontWeight: 800 }}>+{ex.delayDays}</span><span style={{ fontSize: 9 }}>يوم تأخير</span></>
                   ) : (
-                    <>
-                      <span style={{ fontSize: 18, fontWeight: 'bold' }}>{ex.remainingDays}</span>
-                      <span style={{ fontSize: 9 }}>يوم متبقي</span>
-                    </>
+                    <><span style={{ fontSize: 18, fontWeight: 800 }}>{ex.remainingDays}</span><span style={{ fontSize: 9 }}>يوم متبقي</span></>
                   )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <span style={styles.tag}>{ENTITY_NAMES_AR[ex.company] || ex.company}</span>
-                <span style={styles.tag}>{ex.type}</span>
-                <span style={{ ...styles.tag, color: ex.color, borderColor: `${ex.color}40` }}>{ex.statusAr}</span>
+                <span style={s.tag}>{ENTITY_NAMES_AR[ex.company] || ex.company}</span>
+                <span style={s.tag}>{ex.type}</span>
+                <span style={{ ...s.tag, color: ex.color, borderColor: `${ex.color}30` }}>{ex.statusAr}</span>
               </div>
             </div>
           ))}
           {filtered.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 40, color: '#555' }}>
-              <p>لا توجد حفريات مطابقة للفلتر</p>
-            </div>
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-faint)' }}><p>لا توجد حفريات مطابقة للفلتر</p></div>
           )}
         </div>
       )}
@@ -257,119 +193,55 @@ function MapPage() {
   );
 }
 
-const styles = {
-  container: {
-    padding: '20px 16px',
-    direction: 'rtl',
-    maxWidth: 600,
-    margin: '0 auto',
-    background: '#050d05',
-    minHeight: 'calc(100vh - 140px)'
-  },
+const s = {
+  page: { padding: '20px 16px', maxWidth: 600, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
   mockBadge: {
-    display: 'inline-block',
-    marginTop: 8,
-    padding: '4px 12px',
-    borderRadius: 20,
-    background: 'rgba(249,115,22,0.1)',
-    border: '1px solid rgba(249,115,22,0.2)',
-    fontSize: 11,
-    color: '#F97316',
+    display: 'inline-block', marginTop: 8, padding: '4px 12px', borderRadius: 20,
+    background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.12)',
+    fontSize: 11, color: '#F97316',
   },
-  statsRow: {
-    display: 'flex',
-    gap: 8,
-    marginBottom: 16,
-  },
+  statsRow: { display: 'flex', gap: 8, marginBottom: 16 },
   miniStat: {
-    flex: 1,
-    background: 'rgba(27,77,62,0.15)',
-    borderRadius: 12,
-    padding: '12px 8px',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
+    flex: 1, padding: '12px 8px', textAlign: 'center',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
     borderBottom: '3px solid',
   },
   worstBox: {
-    background: 'rgba(220,38,38,0.08)',
-    border: '1px solid rgba(220,38,38,0.15)',
-    borderRadius: 10,
-    padding: '10px 14px',
-    marginBottom: 16,
-    textAlign: 'center',
+    background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.1)',
+    borderRadius: 12, padding: '10px 14px', marginBottom: 16, textAlign: 'center',
   },
   viewBtn: {
-    flex: 1,
-    padding: '10px',
-    borderRadius: 10,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 'bold',
+    flex: 1, padding: 10, borderRadius: 12, border: 'none', cursor: 'pointer',
+    fontSize: 13, fontWeight: 700, fontFamily: 'Tajawal',
+    background: '#fff', color: 'var(--text-dim)', boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
   },
+  viewActive: { background: 'var(--primary-light)', color: 'var(--primary)' },
   filterBtn: {
-    padding: '6px 12px',
-    borderRadius: 8,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 12,
+    padding: '6px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
+    fontSize: 11, whiteSpace: 'nowrap', fontFamily: 'Tajawal',
+    background: '#fff', color: 'var(--text-dim)', boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
   },
+  filterActive: { background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 },
   mapWrapper: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 16,
-    border: '1px solid rgba(200,169,81,0.1)',
-    height: 400,
-    position: 'relative',
+    borderRadius: 16, overflow: 'hidden', marginBottom: 16,
+    border: '1px solid rgba(0,0,0,0.06)', height: 400, position: 'relative',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
   },
   legend: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    background: 'rgba(0,0,0,0.8)',
-    borderRadius: 8,
-    padding: '8px 12px',
-    display: 'flex',
-    gap: 10,
-    zIndex: 1000,
-    flexWrap: 'wrap',
+    position: 'absolute', bottom: 10, right: 10,
+    background: 'rgba(255,255,255,0.95)', borderRadius: 10, padding: '8px 12px',
+    display: 'flex', gap: 10, zIndex: 1000, flexWrap: 'wrap',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
   },
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    fontSize: 10,
-    color: '#ccc',
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    display: 'inline-block',
-  },
-  exCard: {
-    background: 'rgba(27,77,62,0.15)',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    border: '1px solid rgba(200,169,81,0.06)',
-  },
+  legendItem: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#555' },
+  legendDot: { width: 10, height: 10, borderRadius: '50%', display: 'inline-block' },
   countdown: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '8px 12px',
-    borderRadius: 10,
-    minWidth: 65,
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    padding: '8px 12px', borderRadius: 12, minWidth: 65,
   },
   tag: {
-    fontSize: 11,
-    color: '#888',
-    padding: '2px 8px',
-    borderRadius: 6,
-    border: '1px solid rgba(255,255,255,0.1)',
+    fontSize: 11, color: 'var(--text-dim)', padding: '2px 8px', borderRadius: 8,
+    border: '1px solid rgba(0,0,0,0.06)', background: '#fff',
   },
 };
 

@@ -5,162 +5,125 @@ function Navbar() {
   const location = useLocation();
 
   const links = [
-    { to: '/', label: 'بلاغ جديد', icon: '📸' },
+    { to: '/', label: 'بلاغ', icon: '📸' },
     { to: '/track', label: 'تتبع', icon: '🔍' },
-    { to: '/map', label: 'الخريطة', icon: '🗺️' },
-    { to: '/dashboard', label: 'التحكم', icon: '📊' },
+    { to: '/map', label: 'خريطة', icon: '🗺️' },
+    { to: '/dashboard', label: 'تحكم', icon: '📊' },
   ];
 
   return (
     <>
-      {/* الشريط العلوي — الشعار فقط */}
-      <nav style={styles.topBar}>
-        <Link to="/" style={styles.logoLink}>
-          <div style={styles.logoBox}>A</div>
+      {/* Top Bar */}
+      <nav style={s.topBar}>
+        <Link to="/" style={s.logoLink}>
+          <div style={s.logoIcon}>
+            <span style={{ fontSize: 16, fontWeight: 800 }}>أ</span>
+          </div>
           <div>
-            <span style={styles.logoText}>Awla</span>
-            <span style={styles.logoSub}>بلاغ ذكي</span>
+            <span style={s.logoText}>أولى</span>
+            <span style={s.logoSub}>Awla — بلاغ ذكي</span>
           </div>
         </Link>
-        {/* الروابط للشاشات الكبيرة */}
-        <div style={styles.desktopLinks}>
-          {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
+        <div style={s.desktopNav}>
+          {links.map(link => (
+            <Link key={link.to} to={link.to}
               style={{
-                ...styles.desktopLink,
-                ...(location.pathname === link.to ? styles.activeDesktop : {}),
-              }}
-            >
-              {link.label}
+                ...s.deskLink,
+                ...(location.pathname === link.to ? s.deskActive : {})
+              }}>
+              {link.icon} {link.label}
             </Link>
           ))}
         </div>
       </nav>
 
-      {/* شريط التنقل السفلي للجوال */}
-      <nav style={styles.bottomNav}>
-        {links.map((link) => (
-          <Link
-            key={link.to}
-            to={link.to}
-            style={{
-              ...styles.bottomLink,
-              color: location.pathname === link.to ? '#C8A951' : '#666',
-            }}
-          >
-            <span style={{ fontSize: 20 }}>{link.icon}</span>
-            <span style={{
-              fontSize: 10,
-              fontWeight: location.pathname === link.to ? 'bold' : 'normal'
-            }}>
-              {link.label}
-            </span>
-          </Link>
-        ))}
+      {/* Bottom Nav - Mobile */}
+      <nav style={s.bottomNav}>
+        {links.map(link => {
+          const active = location.pathname === link.to;
+          return (
+            <Link key={link.to} to={link.to} style={s.bottomLink}>
+              <div style={{
+                ...s.bottomIcon,
+                background: active ? 'var(--gold-light)' : 'transparent',
+                transform: active ? 'scale(1.1)' : 'scale(1)',
+              }}>
+                <span style={{ fontSize: 18 }}>{link.icon}</span>
+              </div>
+              <span style={{
+                fontSize: 10,
+                fontWeight: active ? 700 : 400,
+                color: active ? 'var(--gold)' : 'var(--text-faint)',
+                marginTop: 2,
+              }}>
+                {link.label}
+              </span>
+            </Link>
+          );
+        })}
       </nav>
     </>
   );
 }
 
-const styles = {
+const s = {
   topBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 20px',
-    background: 'linear-gradient(135deg, #0a1a0a, #1B4D3E)',
-    borderBottom: '1px solid rgba(200,169,81,0.15)',
-    direction: 'rtl',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '14px 20px',
+    background: 'linear-gradient(180deg, rgba(10,26,10,0.98), rgba(10,26,10,0.85))',
+    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+    borderBottom: '1px solid var(--gold-border)',
+    position: 'sticky', top: 0, zIndex: 100,
   },
-  logoLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    textDecoration: 'none',
+  logoLink: { display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' },
+  logoIcon: {
+    width: 38, height: 38, borderRadius: 12,
+    background: 'linear-gradient(135deg, var(--gold), var(--green-deep))',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', boxShadow: '0 4px 16px rgba(200,169,81,0.2)',
   },
-  logoBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    background: 'linear-gradient(135deg, #C8A951, #1B4D3E)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  logoText: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#C8A951',
-    display: 'block',
-    lineHeight: 1,
-  },
-  logoSub: {
-    fontSize: '10px',
-    color: '#888',
-    display: 'block',
-  },
-  // روابط سطح المكتب — مخفية على الجوال
-  desktopLinks: {
-    display: 'none',
-    gap: '6px',
-  },
-  desktopLink: {
-    color: '#999',
-    textDecoration: 'none',
-    padding: '8px 16px',
-    borderRadius: '10px',
-    fontSize: '13px',
+  logoText: { fontSize: 20, fontWeight: 800, color: 'var(--gold)', display: 'block', lineHeight: 1.1 },
+  logoSub: { fontSize: 10, color: 'var(--text-dim)', display: 'block', letterSpacing: 0.5 },
+  desktopNav: { display: 'none', gap: 4 },
+  deskLink: {
+    color: 'var(--text-dim)', textDecoration: 'none',
+    padding: '8px 16px', borderRadius: 12, fontSize: 13,
     transition: 'all 0.3s',
   },
-  activeDesktop: {
-    background: 'rgba(200,169,81,0.15)',
-    color: '#C8A951',
-    fontWeight: 'bold',
+  deskActive: {
+    background: 'var(--gold-light)', color: 'var(--gold)', fontWeight: 700,
   },
-  // شريط التنقل السفلي — للجوال
   bottomNav: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    display: 'flex',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    padding: '8px 0 12px',
-    background: 'linear-gradient(135deg, #0a1a0a, #1B4D3E)',
-    borderTop: '1px solid rgba(200,169,81,0.15)',
-    zIndex: 1000,
+    position: 'fixed', bottom: 0, left: 0, right: 0,
+    display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+    padding: '6px 0 14px',
+    background: 'linear-gradient(180deg, rgba(10,26,10,0.9), rgba(10,26,10,0.98))',
+    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+    borderTop: '1px solid var(--gold-border)',
+    zIndex: 100,
   },
   bottomLink: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 2,
-    textDecoration: 'none',
-    padding: '4px 12px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    textDecoration: 'none', padding: '4px 16px',
+    transition: 'all 0.3s',
+  },
+  bottomIcon: {
+    width: 40, height: 32, borderRadius: 14,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
     transition: 'all 0.3s',
   },
 };
 
-// نضيف CSS للشاشات الكبيرة
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
+// Desktop nav visibility
+const sheet = document.createElement('style');
+sheet.textContent = `
   @media (min-width: 768px) {
-    nav:last-of-type {
-      display: none !important;
-    }
+    nav:last-of-type { display: none !important; }
   }
   @media (min-width: 768px) {
-    nav:first-of-type > div:last-child {
-      display: flex !important;
-    }
+    nav:first-of-type > div:last-child { display: flex !important; }
   }
 `;
-document.head.appendChild(styleSheet);
+document.head.appendChild(sheet);
 
 export default Navbar;
