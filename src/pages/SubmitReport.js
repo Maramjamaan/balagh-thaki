@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitReport } from '../services/reportService';
-import { isAIEnabled, ENTITY_NAMES_AR, severityToArabic, severityColor } from '../services/aiService';
+import { ENTITY_NAMES_AR, severityToArabic, severityColor } from '../services/aiService';
+import { getCurrentLocation } from '../services/locationService';
 
 function SubmitReport() {
   const navigate = useNavigate();
@@ -12,17 +13,22 @@ function SubmitReport() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [step, setStep] = useState(0);
+  const [notes, setNotes] = useState('');
+  const [location, setLocation] = useState(null);
+
+  useEffect(() => {
+    getCurrentLocation()
+      .then(loc => setLocation(loc))
+      .catch(() => setLocation({ latitude: 24.7136, longitude: 46.6753, neighborhood: 'الرياض' }));
+  }, []);
 
   const handleImage = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { setError('حجم الصورة كبير — الحد الأقصى 5 ميجا'); return; }
+      if (file.size > 10 * 1024 * 1024) { setError('حجم الصورة كبير — الحد الأقصى 10 ميجا'); return; }
       setImage(file); setPreview(URL.createObjectURL(file)); setError('');
     }
   };
-
-  const openCamera = () => { if (fileRef.current) { fileRef.current.setAttribute('capture', 'environment'); fileRef.current.click(); } };
-  const openGallery = () => { if (fileRef.current) { fileRef.current.removeAttribute('capture'); fileRef.current.click(); } };
 
   const handleSubmit = async () => {
     if (!image) { setError('ارفع صورة المشكلة أولاً'); return; }
@@ -35,7 +41,7 @@ function SubmitReport() {
     setLoading(false);
   };
 
-  const resetForm = () => { setImage(null); setPreview(null); setResult(null); setError(''); setStep(0); };
+  const resetForm = () => { setImage(null); setPreview(null); setResult(null); setError(''); setStep(0); setNotes(''); };
 
   // === صفحة النتيجة ===
   if (result) {
@@ -49,7 +55,7 @@ function SubmitReport() {
         <div className="fade-up">
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={s.successBadge}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#006838" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1B7F5F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
@@ -87,54 +93,12 @@ function SubmitReport() {
             ].map(([label, val], i) => (
               <div key={i} style={s.row}><span style={s.rowLabel}>{label}</span><span style={s.rowVal}>{val}</span></div>
             ))}
-
             <div style={s.entityBox}>
               <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>الجهة المسؤولة</span>
               <span style={{ color: 'var(--primary)', fontSize: 16, fontWeight: 800, display: 'block', marginTop: 4 }}>
                 {ENTITY_NAMES_AR[ai.responsible_entity] || ai.responsible_entity}
               </span>
             </div>
-
-            {ai.category === 'excavation' && (
-              <div style={s.excBox}>
-                <p style={{ color: 'var(--primary)', fontSize: 11, fontWeight: 700, margin: '0 0 8px' }}>⛏️ بيانات الحفرية</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {[
-                    [ai.has_safety_barriers, '✓ حواجز', '✗ بدون حواجز'],
-                    [ai.has_visible_license, '✓ ترخيص', '✗ بدون ترخيص'],
-                    [!ai.blocks_traffic, '✓ مرور مفتوح', '⚠ تقفل المرور'],
-                  ].map(([ok, yes, no], i) => (
-                    <span key={i} style={{ ...s.chip, color: ok ? 'var(--green)' : 'var(--red)', borderColor: ok ? 'rgba(0,104,56,0.2)' : 'rgba(220,38,38,0.2)' }}>{ok ? yes : no}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p style={s.descBox}>{ai.description_ar}</p>
-          </div>
-
-          <div className="glass" style={{ padding: 20, marginBottom: 14 }}>
-            <h3 style={s.cardTitle}>📊 تفاصيل الأولوية</h3>
-            {Object.entries(p.breakdown).filter(([k]) => k !== 'licenseBonus').map(([k, v]) => {
-              const meta = {
-                severity: { label: 'الشدة', color: '#DC2626' },
-                population: { label: 'الكثافة السكانية', color: '#2B7DE9' },
-                traffic: { label: 'حركة المرور', color: '#F97316' },
-                frequency: { label: 'تكرار البلاغات', color: '#D4A017' },
-                age: { label: 'مدة بدون حل', color: '#8B5CF6' },
-                proximity: { label: 'قرب من مدارس', color: '#EC4899' },
-              };
-              const m = meta[k]; const pct = Math.round((v.points / v.max) * 100);
-              return (
-                <div key={k} style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>{m.label} ({v.weight})</span>
-                    <span style={{ color: m.color, fontSize: 11, fontWeight: 700 }}>{v.points}/{v.max}</span>
-                  </div>
-                  <div style={s.progBg}><div style={{ ...s.progFill, width: `${pct}%`, background: m.color }} /></div>
-                </div>
-              );
-            })}
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
@@ -149,159 +113,224 @@ function SubmitReport() {
   // === صفحة الإرسال ===
   return (
     <div style={s.page}>
-      <div style={{ textAlign: 'center', marginBottom: 28 }} className="fade-up">
-        <div style={s.headerIcon}>📸</div>
-        <h2 style={{ color: 'var(--primary)', fontSize: 24, fontWeight: 800, margin: '12px 0 6px' }}>رفع بلاغ جديد</h2>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.6 }}>صوّر المشكلة والذكاء الاصطناعي يتكفل بالباقي</p>
-        <div style={s.modeBadge}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: isAIEnabled() ? 'var(--green)' : 'var(--orange)', display: 'inline-block', marginLeft: 6 }} />
-          {isAIEnabled() ? 'AI مباشر' : 'وضع تجريبي'}
-        </div>
+      <div style={{ textAlign: 'center', marginBottom: 32 }} className="fade-up">
+        <h1 style={{ fontSize: 36, fontWeight: 800, color: '#1A1613', margin: '0 0 10px' }}>رفع بلاغ جديد</h1>
+        <p style={{ color: '#6B6560', fontSize: 16 }}>التقط صورة للمشكلة ودع الذكاء الاصطناعي يحلل ويصنف البلاغ تلقائياً</p>
       </div>
 
-      <div style={s.catGrid} className="fade-up">
-        {[
-          { icon: '🚧', label: 'حفريات', desc: 'متأخرة · مهجورة · بدون ترخيص' },
-          { icon: '🚦', label: 'مرورية', desc: 'يوتيرن · مطب · إشارة' },
-          { icon: '🔧', label: 'بنية تحتية', desc: 'مياه · إنارة · طرق' },
-          { icon: '💡', label: 'اقتراحات', desc: 'تشجير · مواقف · ممرات' },
-        ].map((cat, i) => (
-          <div key={i} style={s.catCard} className="fade-up">
-            <span style={{ fontSize: 24 }}>{cat.icon}</span>
-            <span style={{ color: 'var(--text)', fontSize: 13, fontWeight: 700 }}>{cat.label}</span>
-            <span style={{ color: 'var(--text-faint)', fontSize: 10 }}>{cat.desc}</span>
-          </div>
-        ))}
-      </div>
+      <div className="fade-up" style={s.formCard}>
+        {/* صورة المشكلة */}
+        <div style={{ marginBottom: 28 }}>
+          <label style={s.label}>صورة المشكلة</label>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
 
-      <div className="glass fade-up" style={{ padding: 20, marginBottom: 14 }}>
-        <p style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📷 صورة المشكلة</p>
-        <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
-
-        {preview ? (
-          <div style={{ position: 'relative' }}>
-            <img src={preview} alt="preview" style={s.previewImg} />
-            <button onClick={() => { setImage(null); setPreview(null); }} style={s.removeBtn}>✕ حذف</button>
-          </div>
-        ) : (
-          <div style={s.uploadArea}>
-            <div style={s.uploadContent}>
-              <div style={s.cameraIcon}>📷</div>
-              <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '8px 0 4px', fontWeight: 500 }}>ارفع صورة المشكلة</p>
-              <p style={{ color: 'var(--text-faint)', fontSize: 11 }}>الذكاء الاصطناعي يحدد النوع والشدة والجهة تلقائياً</p>
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                <button onClick={openCamera} style={s.uploadBtn}>📷 كاميرا</button>
-                <button onClick={openGallery} style={s.uploadBtnAlt}>🖼️ معرض الصور</button>
+          {preview ? (
+            <div style={{ position: 'relative' }}>
+              <img src={preview} alt="preview" style={s.previewImg} />
+              <button onClick={() => { setImage(null); setPreview(null); }} style={s.removeBtn}>حذف</button>
+            </div>
+          ) : (
+            <div style={s.uploadArea} onClick={() => fileRef.current?.click()}>
+              <div style={s.cameraIcon}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6B6560" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
               </div>
+              <p style={{ color: '#1A1613', fontSize: 16, margin: '12px 0 4px', fontWeight: 500 }}>انقر لالتقاط أو رفع صورة</p>
+              <p style={{ color: '#A0A0A0', fontSize: 13 }}>PNG, JPG حتى 10MB</p>
+            </div>
+          )}
+        </div>
+
+        {/* الموقع */}
+        <div style={{ marginBottom: 28 }}>
+          <label style={s.label}>الموقع</label>
+          <div style={s.locationBox}>
+            <div style={s.locationIcon}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B7F5F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1613', margin: 0 }}>تم تحديد الموقع تلقائياً</p>
+              <p style={{ fontSize: 12, color: '#6B6560', margin: '4px 0 0', direction: 'ltr', textAlign: 'right' }}>
+                {location ? `${location.latitude.toFixed(4)}° N, ${location.longitude.toFixed(4)}° E - الرياض` : 'جاري تحديد الموقع...'}
+              </p>
             </div>
           </div>
+        </div>
+
+        {/* ملاحظات */}
+        <div style={{ marginBottom: 28 }}>
+          <label style={s.label}>ملاحظات إضافية (اختياري)</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="أضف أي تفاصيل إضافية تساعد في معالجة البلاغ..."
+            style={s.textarea}
+          />
+        </div>
+
+        {/* أخطاء */}
+        {error && (
+          <div style={s.errorBox}>
+            <span>⚠️</span>
+            <p style={{ color: 'var(--red)', fontSize: 13, margin: 0 }}>{error}</p>
+          </div>
         )}
+
+        {/* زر الإرسال */}
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !image}
+          style={{
+            ...s.submitBtn,
+            background: loading ? 'rgba(27,127,95,0.1)' : !image ? 'rgba(0,0,0,0.06)' : '#1B7F5F',
+            color: loading || !image ? '#A0A0A0' : '#fff',
+            cursor: loading || !image ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {loading ? 'جاري التحليل...' : '⬆️ إرسال البلاغ'}
+        </button>
       </div>
 
-      {error && (
-        <div className="fade-up" style={s.errorBox}>
-          <span style={{ fontSize: 14 }}>⚠️</span>
-          <p style={{ color: 'var(--red)', fontSize: 13, margin: 0 }}>{error}</p>
-        </div>
-      )}
-
-      <button onClick={handleSubmit} disabled={loading || !image} className="fade-up"
-        style={{
-          ...s.submitBtn,
-          background: loading ? 'rgba(0,104,56,0.1)' : !image ? 'rgba(0,0,0,0.04)' : 'linear-gradient(135deg, #006838, #00a65a)',
-          color: loading || !image ? 'var(--text-faint)' : '#fff',
-          cursor: loading || !image ? 'not-allowed' : 'pointer',
-        }}>
-        {loading ? 'جاري التحليل...' : '🚀 تحليل وإرسال البلاغ'}
-      </button>
-
+      {/* Loading */}
       {loading && (
         <div style={{ textAlign: 'center', marginTop: 24 }} className="fade-in">
           <div style={s.spinner} />
           <p style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 600, marginTop: 16 }}>
             {step === 1 ? '🤖 جاري تحليل الصورة...' : step === 2 ? '📤 جاري رفع البلاغ...' : '✨ شبه خلصنا...'}
           </p>
-          <p style={{ color: 'var(--text-faint)', fontSize: 11, marginTop: 4 }}>
-            {step === 1 ? 'يحدد النوع والشدة والجهة المسؤولة' : 'يحفظ البلاغ ويحسب الأولوية'}
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-            {[1, 2, 3].map(i => (
-              <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: step >= i ? 'var(--primary)' : 'rgba(0,0,0,0.08)', transition: 'all 0.4s' }} />
-            ))}
-          </div>
         </div>
       )}
+
+      {/* Info Cards */}
+      <div style={s.infoGrid} className="fade-up">
+        {[
+          { icon: '⚡', title: 'سريع وسهل', desc: 'صورة واحدة تكفي' },
+          { icon: '🤖', title: 'ذكي وتلقائي', desc: 'تصنيف بالذكاء الاصطناعي' },
+          { icon: '📊', title: 'متابعة شاملة', desc: 'تتبع البلاغ حتى الإنجاز' },
+        ].map((item, i) => (
+          <div key={i} style={s.infoCard}>
+            <span style={{ fontSize: 28 }}>{item.icon}</span>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '8px 0 4px', color: '#1A1613' }}>{item.title}</h3>
+            <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>{item.desc}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 const s = {
-  page: { padding: '20px 16px', maxWidth: 560, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
-  headerIcon: {
-    fontSize: 40, width: 72, height: 72, margin: '0 auto',
-    background: 'var(--primary-light)', borderRadius: 24,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    border: '1px solid var(--primary-border)',
+  page: { padding: '40px 20px', maxWidth: 800, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
+  formCard: {
+    background: '#fff',
+    borderRadius: 24,
+    padding: 32,
+    border: '2px solid rgba(157,124,95,0.15)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+    marginBottom: 40,
   },
-  modeBadge: {
-    display: 'inline-flex', alignItems: 'center', marginTop: 12,
-    padding: '5px 14px', borderRadius: 20,
-    background: 'var(--primary-light)', border: '1px solid var(--primary-border)',
-    fontSize: 11, color: 'var(--primary)',
+  label: {
+    display: 'block',
+    fontSize: 16,
+    fontWeight: 600,
+    color: '#1A1613',
+    marginBottom: 12,
+    fontFamily: "'Tajawal', sans-serif",
   },
-  catGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 },
-  catCard: {
-    background: '#fff', borderRadius: 16, padding: '14px 12px',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-    textAlign: 'center', border: '1px solid rgba(0,0,0,0.04)',
-    boxShadow: '0 1px 6px rgba(0,0,0,0.03)',
-  },
-  uploadArea: { border: '2px dashed var(--primary-border)', borderRadius: 16, overflow: 'hidden' },
-  uploadContent: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    justifyContent: 'center', padding: '28px 20px', textAlign: 'center',
+  uploadArea: {
+    border: '3px dashed rgba(157,124,95,0.25)',
+    borderRadius: 16,
+    padding: '48px 24px',
+    textAlign: 'center',
+    cursor: 'pointer',
+    background: 'rgba(245,241,237,0.3)',
+    transition: 'border-color 0.2s',
   },
   cameraIcon: {
-    fontSize: 36, width: 64, height: 64, borderRadius: 20,
-    background: 'var(--primary-light)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center',
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    background: 'rgba(245,241,237,0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 8px',
   },
-  uploadBtn: {
-    padding: '10px 20px', borderRadius: 12,
-    background: 'linear-gradient(135deg, #006838, #00a65a)',
-    color: '#fff', border: 'none', fontSize: 13, fontWeight: 700,
-    cursor: 'pointer', fontFamily: 'Tajawal',
-  },
-  uploadBtnAlt: {
-    padding: '10px 20px', borderRadius: 12,
-    background: '#fff', color: 'var(--primary)',
-    border: '1px solid var(--primary-border)', fontSize: 13, fontWeight: 600,
-    cursor: 'pointer', fontFamily: 'Tajawal',
-  },
-  previewImg: { width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 14, display: 'block' },
+  previewImg: { width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 16, display: 'block' },
   removeBtn: {
-    position: 'absolute', top: 10, left: 10,
-    background: 'rgba(220,38,38,0.9)', color: '#fff',
-    border: 'none', borderRadius: 8, padding: '6px 12px',
-    fontSize: 11, cursor: 'pointer', fontFamily: 'Tajawal',
+    position: 'absolute', top: 12, left: 12,
+    background: '#D94545', color: '#fff',
+    border: 'none', borderRadius: 10, padding: '8px 16px',
+    fontSize: 13, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif",
+  },
+  locationBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: 'rgba(245,241,237,0.5)',
+    border: '2px solid rgba(157,124,95,0.15)',
+    borderRadius: 14,
+    padding: '16px 20px',
+  },
+  locationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    background: 'rgba(27,127,95,0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  textarea: {
+    width: '100%',
+    height: 120,
+    background: '#fff',
+    border: '2px solid rgba(157,124,95,0.15)',
+    borderRadius: 14,
+    padding: 16,
+    resize: 'none',
+    fontSize: 14,
+    fontFamily: "'Tajawal', sans-serif",
+    outline: 'none',
+    color: '#1A1613',
+    direction: 'rtl',
   },
   errorBox: {
     display: 'flex', alignItems: 'center', gap: 8,
-    background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.12)',
+    background: 'rgba(217,69,69,0.06)', border: '1px solid rgba(217,69,69,0.15)',
     borderRadius: 14, padding: '12px 16px', marginBottom: 14,
   },
   submitBtn: {
-    width: '100%', padding: 16, border: 'none', borderRadius: 16,
-    fontSize: 16, fontWeight: 800, transition: 'all 0.4s', fontFamily: 'Tajawal',
+    width: '100%', padding: 18, border: 'none', borderRadius: 14,
+    fontSize: 17, fontWeight: 700, transition: 'all 0.3s', fontFamily: "'Tajawal', sans-serif",
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   spinner: {
-    width: 44, height: 44, border: '3px solid rgba(0,104,56,0.12)',
+    width: 44, height: 44, border: '3px solid rgba(27,127,95,0.12)',
     borderTopColor: 'var(--primary)', borderRadius: '50%',
     margin: '0 auto', animation: 'spin 0.8s linear infinite',
   },
+  infoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: 16,
+    marginTop: 20,
+  },
+  infoCard: {
+    background: '#fff',
+    borderRadius: 16,
+    padding: '24px 20px',
+    border: '2px solid rgba(157,124,95,0.15)',
+    textAlign: 'center',
+  },
   successBadge: {
     width: 64, height: 64, borderRadius: 20, margin: '0 auto',
-    background: 'rgba(0,104,56,0.08)', border: '2px solid rgba(0,104,56,0.15)',
+    background: 'rgba(27,127,95,0.08)', border: '2px solid rgba(27,127,95,0.15)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   cardTitle: { color: 'var(--primary)', fontSize: 14, fontWeight: 700, margin: '0 0 16px' },
@@ -312,26 +341,15 @@ const s = {
     background: 'var(--primary-light)', border: '1px solid var(--primary-border)',
     borderRadius: 14, padding: 14, marginTop: 14, textAlign: 'center',
   },
-  excBox: {
-    background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.08)',
-    borderRadius: 14, padding: 14, marginTop: 14,
-  },
-  chip: { padding: '4px 10px', borderRadius: 8, fontSize: 11, border: '1px solid', background: '#fff' },
-  descBox: {
-    color: 'var(--text-dim)', fontSize: 12, margin: '14px 0 0', lineHeight: 1.8,
-    background: 'rgba(0,0,0,0.02)', padding: 12, borderRadius: 12,
-  },
-  progBg: { background: 'rgba(0,0,0,0.04)', borderRadius: 6, height: 5, overflow: 'hidden' },
-  progFill: { height: '100%', borderRadius: 6, transition: 'width 1.2s ease' },
   btnPrimary: {
-    flex: 1, padding: 14, background: 'linear-gradient(135deg, #006838, #00a65a)',
+    flex: 1, padding: 14, background: '#1B7F5F',
     color: '#fff', border: 'none', borderRadius: 14, fontSize: 14,
-    cursor: 'pointer', fontWeight: 700, fontFamily: 'Tajawal',
+    cursor: 'pointer', fontWeight: 700, fontFamily: "'Tajawal', sans-serif",
   },
   btnSecondary: {
     flex: 1, padding: 14, background: 'var(--primary-light)', color: 'var(--primary)',
     border: '1px solid var(--primary-border)', borderRadius: 14,
-    fontSize: 14, cursor: 'pointer', fontFamily: 'Tajawal',
+    fontSize: 14, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif",
   },
 };
 

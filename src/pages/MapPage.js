@@ -1,248 +1,280 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import { ENTITY_NAMES_AR } from '../services/aiService';
-import 'leaflet/dist/leaflet.css';
+import React, { useState } from 'react';
 
-const MOCK_EXCAVATIONS = [
-  { id: 1, company: 'NWC', type: 'مياه', street: 'طريق الملك فهد', neighborhood: 'العليا', lat: 24.6900, lng: 46.6850, permitDate: '2025-12-01', permitDays: 30 },
-  { id: 2, company: 'NWC', type: 'صرف', street: 'شارع التحلية', neighborhood: 'السليمانية', lat: 24.6950, lng: 46.6750, permitDate: '2025-12-15', permitDays: 60 },
-  { id: 3, company: 'NWC', type: 'مياه', street: 'شارع العروبة', neighborhood: 'الملز', lat: 24.6650, lng: 46.7150, permitDate: '2026-01-01', permitDays: 30 },
-  { id: 4, company: 'SEC', type: 'كهرباء', street: 'طريق خريص', neighborhood: 'الروضة', lat: 24.6700, lng: 46.7500, permitDate: '2025-11-20', permitDays: 45 },
-  { id: 5, company: 'SEC', type: 'كهرباء', street: 'شارع الأمير سلطان', neighborhood: 'الورود', lat: 24.7000, lng: 46.7000, permitDate: '2026-01-10', permitDays: 30 },
-  { id: 6, company: 'SEC', type: 'كهرباء', street: 'طريق الدائري', neighborhood: 'النخيل', lat: 24.7800, lng: 46.6250, permitDate: '2026-01-20', permitDays: 45 },
-  { id: 7, company: 'STC', type: 'اتصالات', street: 'شارع الثلاثين', neighborhood: 'النسيم', lat: 24.6800, lng: 46.7800, permitDate: '2026-02-01', permitDays: 30 },
-  { id: 8, company: 'STC', type: 'اتصالات', street: 'شارع الأربعين', neighborhood: 'الياسمين', lat: 24.8200, lng: 46.6350, permitDate: '2025-12-20', permitDays: 30 },
-  { id: 9, company: 'Mobily', type: 'اتصالات', street: 'شارع الخمسين', neighborhood: 'حطين', lat: 24.7600, lng: 46.6200, permitDate: '2026-02-10', permitDays: 30 },
-  { id: 10, company: 'Zain', type: 'اتصالات', street: 'شارع المعذر', neighborhood: 'الملقا', lat: 24.8000, lng: 46.6150, permitDate: '2026-01-05', permitDays: 30 },
-  { id: 11, company: 'NWC', type: 'مياه', street: 'شارع البطحاء', neighborhood: 'البطحاء', lat: 24.6400, lng: 46.7200, permitDate: '2025-11-15', permitDays: 60 },
-  { id: 12, company: 'NWC', type: 'صرف', street: 'شارع الديرة', neighborhood: 'الديرة', lat: 24.6500, lng: 46.7100, permitDate: '2026-01-25', permitDays: 45 },
-  { id: 13, company: 'SEC', type: 'كهرباء', street: 'شارع السويدي', neighborhood: 'السويدي', lat: 24.6100, lng: 46.6400, permitDate: '2026-02-15', permitDays: 30 },
-  { id: 14, company: 'NWC', type: 'مياه', street: 'طريق الشفا', neighborhood: 'الشفا', lat: 24.5500, lng: 46.6800, permitDate: '2026-01-15', permitDays: 30 },
-  { id: 15, company: 'STC', type: 'ألياف', street: 'شارع الروابي', neighborhood: 'الروابي', lat: 24.6600, lng: 46.7700, permitDate: '2026-02-20', permitDays: 30 },
-  { id: 16, company: 'NWC', type: 'مياه', street: 'شارع العزيزية', neighborhood: 'العزيزية', lat: 24.6000, lng: 46.7300, permitDate: '2025-12-10', permitDays: 30 },
-  { id: 17, company: 'SEC', type: 'كهرباء', street: 'شارع الصحافة', neighborhood: 'الصحافة', lat: 24.7400, lng: 46.6600, permitDate: '2026-01-30', permitDays: 30 },
-  { id: 18, company: 'NWC', type: 'صرف', street: 'شارع ظهرة لبن', neighborhood: 'ظهرة لبن', lat: 24.6300, lng: 46.6200, permitDate: '2025-11-25', permitDays: 60 },
-  { id: 19, company: 'Mobily', type: 'اتصالات', street: 'شارع الغدير', neighborhood: 'الغدير', lat: 24.7500, lng: 46.6400, permitDate: '2026-02-05', permitDays: 30 },
-  { id: 20, company: 'NWC', type: 'مياه', street: 'شارع الربيع', neighborhood: 'الربيع', lat: 24.8100, lng: 46.6500, permitDate: '2026-01-08', permitDays: 45 },
+const excavations = [
+  { id: 1, company: 'المياه الوطنية (NWC)', location: 'طريق الملك فهد', lat: 24.7136, lng: 46.6753, daysDelayed: 45, licenseDays: 60, status: 'متأخرة' },
+  { id: 2, company: 'السعودية للكهرباء (SEC)', location: 'طريق الملك عبدالله', lat: 24.7200, lng: 46.6800, daysDelayed: 0, licenseDays: 30, status: 'في الموعد' },
+  { id: 3, company: 'STC', location: 'طريق العليا', lat: 24.7300, lng: 46.6700, daysDelayed: 15, licenseDays: 45, status: 'متأخرة' },
+  { id: 4, company: 'موبايلي', location: 'شارع التخصصي', lat: 24.7100, lng: 46.6900, daysDelayed: 0, licenseDays: 30, status: 'في الموعد' },
+  { id: 5, company: 'المياه الوطنية (NWC)', location: 'طريق الملك خالد', lat: 24.7400, lng: 46.6600, daysDelayed: 22, licenseDays: 60, status: 'متأخرة' },
 ];
 
-function processExcavations(data) {
-  const now = new Date();
-  return data.map(ex => {
-    const permitEnd = new Date(ex.permitDate);
-    permitEnd.setDate(permitEnd.getDate() + ex.permitDays);
-    const diffMs = now - permitEnd;
-    const delayDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const remainingDays = -delayDays;
-    let color, statusAr;
-    if (delayDays > 30) { color = '#DC2626'; statusAr = 'متأخرة جداً'; }
-    else if (delayDays > 0) { color = '#F97316'; statusAr = 'متأخرة'; }
-    else if (remainingDays <= 7) { color = '#D4A017'; statusAr = 'قاربت على الانتهاء'; }
-    else { color = '#006838'; statusAr = 'في الموعد'; }
-    return { ...ex, delayDays, remainingDays, color, statusAr, permitEnd };
-  }).sort((a, b) => b.delayDays - a.delayDays);
-}
-
 function MapPage() {
-  const [excavations, setExcavations] = useState([]);
-  const [companyFilter, setCompanyFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [view, setView] = useState('map');
+  const [selected, setSelected] = useState(null);
+  const [filter, setFilter] = useState('الكل');
 
-  useEffect(() => { setExcavations(processExcavations(MOCK_EXCAVATIONS)); }, []);
-
-  const filtered = excavations.filter(ex => {
-    if (companyFilter !== 'all' && ex.company !== companyFilter) return false;
-    if (statusFilter === 'overdue' && ex.delayDays <= 0) return false;
-    if (statusFilter === 'active' && ex.delayDays > 0) return false;
+  const filtered = excavations.filter(e => {
+    if (filter === 'متأخرة فقط') return e.status === 'متأخرة';
+    if (filter === 'في الموعد') return e.status === 'في الموعد';
     return true;
   });
 
-  const totalOverdue = excavations.filter(e => e.delayDays > 0).length;
-  const totalActive = excavations.filter(e => e.delayDays <= 0).length;
-  const worstCompany = (() => {
-    const counts = {};
-    excavations.filter(e => e.delayDays > 0).forEach(e => { counts[e.company] = (counts[e.company] || 0) + 1; });
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return sorted[0] ? `${ENTITY_NAMES_AR[sorted[0][0]]} (${sorted[0][1]})` : '-';
-  })();
-
-  const companies = ['all', 'NWC', 'SEC', 'STC', 'Mobily', 'Zain'];
-
   return (
     <div style={s.page}>
-      <div style={{ marginBottom: 16 }} className="fade-up">
-        <h2 style={{ color: 'var(--primary)', fontSize: 22, fontWeight: 800 }}>خريطة الحفريات</h2>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 4 }}>مراقبة الحفريات النشطة والمتأخرة في الرياض</p>
-        <div style={s.mockBadge}>بيانات تجريبية — مصمم للربط مع منصة نسق</div>
-      </div>
-
-      {/* Stats */}
-      <div style={s.statsRow} className="fade-up">
-        <div className="glass" style={{ ...s.miniStat, borderBottomColor: '#DC2626' }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#DC2626' }}>{totalOverdue}</span>
-          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>متأخرة</span>
+      <div style={s.container}>
+        {/* Header */}
+        <div style={{ marginBottom: 28, textAlign: 'right' }}>
+          <h1 style={s.title}>خريطة الحفريات</h1>
+          <p style={s.subtitle}>متابعة حية لجميع الحفريات المرخصة في الرياض</p>
         </div>
-        <div className="glass" style={{ ...s.miniStat, borderBottomColor: '#006838' }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#006838' }}>{totalActive}</span>
-          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>في الموعد</span>
-        </div>
-        <div className="glass" style={{ ...s.miniStat, borderBottomColor: '#F97316' }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#F97316' }}>{excavations.length}</span>
-          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>إجمالي</span>
-        </div>
-      </div>
 
-      {/* Worst company */}
-      <div style={s.worstBox} className="fade-up">
-        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>أكثر شركة تأخيراً:</span>
-        <span style={{ color: '#DC2626', fontSize: 13, fontWeight: 800 }}> {worstCompany}</span>
-      </div>
-
-      {/* View toggle */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }} className="fade-up">
-        <button onClick={() => setView('map')}
-          style={{ ...s.viewBtn, ...(view === 'map' ? s.viewActive : {}) }}>🗺️ خريطة</button>
-        <button onClick={() => setView('list')}
-          style={{ ...s.viewBtn, ...(view === 'list' ? s.viewActive : {}) }}>📋 قائمة</button>
-      </div>
-
-      {/* Company filters */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }} className="fade-up">
-        {companies.map(c => (
-          <button key={c} onClick={() => setCompanyFilter(c)}
-            style={{ ...s.filterBtn, ...(companyFilter === c ? s.filterActive : {}) }}>
-            {c === 'all' ? 'الكل' : ENTITY_NAMES_AR[c] || c}
-          </button>
-        ))}
-      </div>
-
-      {/* Status filter */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }} className="fade-up">
-        {[{ id: 'all', label: 'الكل' }, { id: 'overdue', label: 'متأخرة فقط' }, { id: 'active', label: 'في الموعد' }].map(f => (
-          <button key={f.id} onClick={() => setStatusFilter(f.id)}
-            style={{ ...s.filterBtn, ...(statusFilter === f.id ? s.filterActive : {}) }}>{f.label}</button>
-        ))}
-      </div>
-
-      {/* Map */}
-      {view === 'map' && (
-        <div style={s.mapWrapper} className="fade-up">
-          <MapContainer center={[24.7136, 46.6753]} zoom={11} style={{ height: '100%', width: '100%', borderRadius: 16 }} scrollWheelZoom={true}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-            {filtered.map(ex => (
-              <CircleMarker key={ex.id} center={[ex.lat, ex.lng]}
-                radius={ex.delayDays > 30 ? 14 : ex.delayDays > 0 ? 11 : 8}
-                fillColor={ex.color} color={ex.color} weight={2} opacity={0.9} fillOpacity={0.6}>
-                <Popup>
-                  <div style={{ direction: 'rtl', fontFamily: 'Tajawal', minWidth: 180 }}>
-                    <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 6px', color: '#006838' }}>{ex.street}</p>
-                    <p style={{ fontSize: 12, color: '#666', margin: '0 0 4px' }}>{ex.neighborhood}</p>
-                    <p style={{ fontSize: 12, margin: '0 0 4px', color: '#333' }}><strong>الشركة:</strong> {ENTITY_NAMES_AR[ex.company]}</p>
-                    <p style={{ fontSize: 12, margin: '0 0 4px', color: '#333' }}><strong>النوع:</strong> {ex.type}</p>
-                    <p style={{ fontSize: 13, fontWeight: 700, margin: '8px 0 0', color: ex.color }}>
-                      {ex.delayDays > 0 ? `متأخرة ${ex.delayDays} يوم` : `باقي ${ex.remainingDays} يوم`}
-                    </p>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            ))}
-          </MapContainer>
-
-          {/* Legend */}
-          <div style={s.legend}>
-            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#DC2626' }} /> متأخرة جداً</span>
-            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#F97316' }} /> متأخرة</span>
-            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#D4A017' }} /> قاربت</span>
-            <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#006838' }} /> في الموعد</span>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      {view === 'list' && (
-        <div>
-          {filtered.map(ex => (
-            <div key={ex.id} className="glass fade-up" style={{ padding: 16, marginBottom: 10, borderRight: `4px solid ${ex.color}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div>
-                  <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: 14 }}>{ex.street}</span>
-                  <span style={{ color: 'var(--text-faint)', fontSize: 12, display: 'block', marginTop: 2 }}>{ex.neighborhood}</span>
+        <div style={s.grid}>
+          {/* Map */}
+          <div style={s.mapWrapper}>
+            <div style={s.mapCard}>
+              {/* Map Header */}
+              <div style={s.mapHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span style={{ color: '#fff', fontSize: 15, fontWeight: 500 }}>خريطة الرياض التفاعلية</span>
                 </div>
-                <div style={{ ...s.countdown, background: `${ex.color}10`, color: ex.color }}>
-                  {ex.delayDays > 0 ? (
-                    <><span style={{ fontSize: 18, fontWeight: 800 }}>+{ex.delayDays}</span><span style={{ fontSize: 9 }}>يوم تأخير</span></>
-                  ) : (
-                    <><span style={{ fontSize: 18, fontWeight: 800 }}>{ex.remainingDays}</span><span style={{ fontSize: 9 }}>يوم متبقي</span></>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                  <select value={filter} onChange={e => setFilter(e.target.value)} style={s.filterSelect}>
+                    <option>الكل</option>
+                    <option>متأخرة فقط</option>
+                    <option>في الموعد</option>
+                  </select>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <span style={s.tag}>{ENTITY_NAMES_AR[ex.company] || ex.company}</span>
-                <span style={s.tag}>{ex.type}</span>
-                <span style={{ ...s.tag, color: ex.color, borderColor: `${ex.color}30` }}>{ex.statusAr}</span>
+
+              {/* Map Area */}
+              <div style={s.mapArea}>
+                {/* Grid bg */}
+                <div style={s.gridBg}>
+                  {Array.from({ length: 100 }).map((_, i) => (
+                    <div key={i} style={{ border: '1px solid rgba(157,124,95,0.06)' }} />
+                  ))}
+                </div>
+
+                {/* Markers */}
+                {filtered.map(exc => {
+                  const left = `${((exc.lng - 46.65) / 0.05) * 100}%`;
+                  const top = `${100 - ((exc.lat - 24.70) / 0.05) * 100}%`;
+                  const isDelayed = exc.status === 'متأخرة';
+                  return (
+                    <button key={exc.id} onClick={() => setSelected(exc)}
+                      style={{ ...s.marker, left, top }}>
+                      {isDelayed && <span style={s.pulse} />}
+                      <div style={{ ...s.dot, background: isDelayed ? '#DC3545' : '#1B7F5F' }}>
+                        <div style={s.dotInner} />
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Legend */}
+                <div style={s.legend}>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>دليل الألوان</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#DC3545' }} />
+                    <span style={{ fontSize: 13 }}>متأخرة</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#1B7F5F' }} />
+                    <span style={{ fontSize: 13 }}>في الموعد</span>
+                  </div>
+                </div>
+
+                {/* Scale */}
+                <div style={s.scale}>
+                  <div style={{ height: 3, width: 60, background: '#1A1613', borderRadius: 2 }} />
+                  <span style={{ fontSize: 11 }}>5 كم</span>
+                </div>
               </div>
             </div>
-          ))}
-          {filtered.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-faint)' }}><p>لا توجد حفريات مطابقة للفلتر</p></div>
-          )}
+          </div>
+
+          {/* Sidebar */}
+          <div style={s.sidebar}>
+            {/* Stats */}
+            <div style={s.card}>
+              <h3 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 20px' }}>إحصائيات الحفريات</h3>
+              <div style={s.statRow}>
+                <span style={{ color: '#6B6560', fontSize: 14 }}>إجمالي الحفريات</span>
+                <span style={{ fontSize: 22, fontWeight: 700 }}>156</span>
+              </div>
+              <div style={s.statRow}>
+                <span style={{ color: '#6B6560', fontSize: 14 }}>متأخرة</span>
+                <span style={{ fontSize: 22, fontWeight: 700, color: '#DC3545' }}>30</span>
+              </div>
+              <div style={s.statRow}>
+                <span style={{ color: '#6B6560', fontSize: 14 }}>في الموعد</span>
+                <span style={{ fontSize: 22, fontWeight: 700, color: '#1B7F5F' }}>126</span>
+              </div>
+            </div>
+
+            {/* Selected or Placeholder */}
+            {selected ? (
+              <div style={s.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>تفاصيل الحفرية</h3>
+                  <button onClick={() => setSelected(null)} style={s.closeBtn}>✕</button>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <p style={s.detailLabel}>الموقع</p>
+                  <p style={s.detailValue}>{selected.location}</p>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <p style={s.detailLabel}>الشركة</p>
+                  <p style={s.detailValue}>{selected.company}</p>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <p style={s.detailLabel}>الحالة</p>
+                  <span style={{
+                    display: 'inline-block', padding: '4px 14px', borderRadius: 10,
+                    fontSize: 13, fontWeight: 600, color: '#fff',
+                    background: selected.status === 'متأخرة' ? '#DC3545' : '#1B7F5F',
+                  }}>{selected.status}</span>
+                </div>
+                {selected.daysDelayed > 0 ? (
+                  <div style={{ ...s.alertBox, background: 'rgba(220,53,69,0.08)', border: '2px solid rgba(220,53,69,0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC3545" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                      <span style={{ fontWeight: 500 }}>متأخرة عن الموعد</span>
+                    </div>
+                    <p style={{ fontSize: 24, fontWeight: 700, color: '#DC3545', margin: '0 0 4px' }}>{selected.daysDelayed} يوم</p>
+                    <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>من أصل {selected.licenseDays} يوم ترخيص</p>
+                  </div>
+                ) : (
+                  <div style={{ ...s.alertBox, background: 'rgba(27,127,95,0.08)', border: '2px solid rgba(27,127,95,0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B7F5F" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <span style={{ fontWeight: 500 }}>في الموعد المحدد</span>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>مدة الترخيص: {selected.licenseDays} يوم</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={s.placeholder}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <p style={{ color: '#6B6560', margin: '12px 0 0', fontSize: 14 }}>انقر على أي علامة في الخريطة لعرض التفاصيل</p>
+              </div>
+            )}
+
+            {/* About */}
+            <div style={s.aboutCard}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1613" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>عن الخريطة</h3>
+              </div>
+              <p style={{ fontSize: 13, color: '#6B6560', lineHeight: 1.8, margin: 0 }}>
+                تعرض الخريطة جميع الحفريات المرخصة في الرياض مع عداد تنازلي لكل منها. العلامات الحمراء تشير للحفريات المتأخرة، والخضراء للحفريات في الموعد.
+              </p>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 const s = {
-  page: { padding: '20px 16px', maxWidth: 600, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
-  mockBadge: {
-    display: 'inline-block', marginTop: 8, padding: '4px 12px', borderRadius: 20,
-    background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.12)',
-    fontSize: 11, color: '#F97316',
+  page: { minHeight: 'calc(100vh - 140px)', padding: '40px 16px' },
+  container: { maxWidth: 1200, margin: '0 auto' },
+  title: { fontSize: 36, fontWeight: 700, color: '#1A1613', margin: '0 0 6px', fontFamily: "'Tajawal', sans-serif" },
+  subtitle: { fontSize: 16, color: '#6B6560', margin: 0 },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 },
+  mapWrapper: { minWidth: 0 },
+  mapCard: {
+    background: '#fff', borderRadius: 20, overflow: 'hidden',
+    border: '2px solid rgba(157,124,95,0.15)', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
   },
-  statsRow: { display: 'flex', gap: 8, marginBottom: 16 },
-  miniStat: {
-    flex: 1, padding: '12px 8px', textAlign: 'center',
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    borderBottom: '3px solid',
+  mapHeader: {
+    background: '#1B7F5F', padding: '14px 20px',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   },
-  worstBox: {
-    background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.1)',
-    borderRadius: 12, padding: '10px 14px', marginBottom: 16, textAlign: 'center',
+  filterSelect: {
+    background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
+    borderRadius: 8, padding: '6px 12px', color: '#fff', fontSize: 13,
+    outline: 'none', fontFamily: "'Tajawal', sans-serif", cursor: 'pointer',
   },
-  viewBtn: {
-    flex: 1, padding: 10, borderRadius: 12, border: 'none', cursor: 'pointer',
-    fontSize: 13, fontWeight: 700, fontFamily: 'Tajawal',
-    background: '#fff', color: 'var(--text-dim)', boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+  mapArea: {
+    position: 'relative', height: 500, background: 'rgba(245,241,237,0.3)', padding: 32,
   },
-  viewActive: { background: 'var(--primary-light)', color: 'var(--primary)' },
-  filterBtn: {
-    padding: '6px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
-    fontSize: 11, whiteSpace: 'nowrap', fontFamily: 'Tajawal',
-    background: '#fff', color: 'var(--text-dim)', boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+  gridBg: {
+    position: 'absolute', inset: 0,
+    display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gridTemplateRows: 'repeat(10, 1fr)',
+    opacity: 0.6,
   },
-  filterActive: { background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 },
-  mapWrapper: {
-    borderRadius: 16, overflow: 'hidden', marginBottom: 16,
-    border: '1px solid rgba(0,0,0,0.06)', height: 400, position: 'relative',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+  marker: {
+    position: 'absolute', transform: 'translate(-50%, -50%)',
+    background: 'none', border: 'none', cursor: 'pointer', padding: 0, zIndex: 2,
+  },
+  pulse: {
+    position: 'absolute', width: 24, height: 24, borderRadius: '50%',
+    background: 'rgba(220,53,69,0.3)', top: '50%', left: '50%',
+    transform: 'translate(-50%, -50%)',
+    animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite',
+  },
+  dot: {
+    width: 24, height: 24, borderRadius: '50%', position: 'relative',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.2s',
+  },
+  dotInner: {
+    position: 'absolute', top: -2, right: -2,
+    width: 10, height: 10, borderRadius: '50%',
+    background: '#fff', border: '2px solid currentColor',
   },
   legend: {
-    position: 'absolute', bottom: 10, right: 10,
-    background: 'rgba(255,255,255,0.95)', borderRadius: 10, padding: '8px 12px',
-    display: 'flex', gap: 10, zIndex: 1000, flexWrap: 'wrap',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    position: 'absolute', bottom: 16, left: 16,
+    background: '#fff', borderRadius: 14, padding: '14px 18px',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '2px solid rgba(157,124,95,0.15)',
   },
-  legendItem: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#555' },
-  legendDot: { width: 10, height: 10, borderRadius: '50%', display: 'inline-block' },
-  countdown: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    padding: '8px 12px', borderRadius: 12, minWidth: 65,
+  scale: {
+    position: 'absolute', bottom: 16, right: 16,
+    background: '#fff', borderRadius: 12, padding: '10px 14px',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '2px solid rgba(157,124,95,0.15)',
+    display: 'flex', alignItems: 'center', gap: 8,
   },
-  tag: {
-    fontSize: 11, color: 'var(--text-dim)', padding: '2px 8px', borderRadius: 8,
-    border: '1px solid rgba(0,0,0,0.06)', background: '#fff',
+  sidebar: { display: 'flex', flexDirection: 'column', gap: 20 },
+  card: {
+    background: '#fff', borderRadius: 20, padding: 24,
+    border: '2px solid rgba(157,124,95,0.15)', boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+  },
+  statRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '10px 0', borderBottom: '1px solid rgba(157,124,95,0.08)',
+  },
+  placeholder: {
+    background: 'rgba(245,241,237,0.5)', borderRadius: 20, padding: 32,
+    border: '2px dashed rgba(157,124,95,0.2)', textAlign: 'center',
+  },
+  closeBtn: {
+    background: 'none', border: 'none', fontSize: 18, color: '#6B6560',
+    cursor: 'pointer', padding: '4px 8px',
+  },
+  detailLabel: { fontSize: 13, color: '#6B6560', margin: '0 0 2px' },
+  detailValue: { fontSize: 15, color: '#1A1613', margin: 0, fontWeight: 500 },
+  alertBox: { borderRadius: 14, padding: 16 },
+  aboutCard: {
+    background: 'linear-gradient(135deg, rgba(157,124,95,0.15), rgba(212,165,116,0.15))',
+    borderRadius: 20, padding: 24, border: '2px solid rgba(157,124,95,0.2)',
   },
 };
+
+// Ping animation
+const pingStyle = document.createElement('style');
+pingStyle.textContent = `
+  @keyframes ping {
+    75%, 100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+  }
+  @media (max-width: 900px) {
+    div[style*="grid-template-columns: 1fr 340px"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+`;
+document.head.appendChild(pingStyle);
 
 export default MapPage;

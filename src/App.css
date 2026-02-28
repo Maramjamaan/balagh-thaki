@@ -7,20 +7,24 @@
 }
 
 :root {
-  --primary: #006838;
-  --primary-light: rgba(0, 104, 56, 0.08);
-  --primary-border: rgba(0, 104, 56, 0.1);
-  --bg: #FAF8F5;
-  --card: rgba(255, 255, 255, 0.92);
-  --card-border: rgba(0, 104, 56, 0.06);
-  --text: #1A1A1A;
-  --text-dim: #5A5A5A;
+  --primary: #1B7F5F;
+  --primary-light: rgba(27, 127, 95, 0.08);
+  --primary-border: rgba(27, 127, 95, 0.15);
+  --secondary: #9D7C5F;
+  --secondary-light: rgba(157, 124, 95, 0.1);
+  --accent: #D4A574;
+  --bg: #FAFAF8;
+  --muted: #F5F1ED;
+  --card: #FFFFFF;
+  --card-border: rgba(157, 124, 95, 0.15);
+  --text: #1A1613;
+  --text-dim: #6B6560;
   --text-faint: #A0A0A0;
-  --red: #DC2626;
+  --red: #D94545;
   --orange: #F97316;
   --yellow: #D4A017;
-  --green: #006838;
-  --blue: #2B7DE9;
+  --green: #1B7F5F;
+  --blue: #4A8FDB;
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 

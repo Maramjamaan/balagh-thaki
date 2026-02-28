@@ -5,10 +5,8 @@ import { ENTITY_NAMES_AR } from '../services/aiService';
 function Dashboard() {
   const [reports, setReports] = useState([]);
   const [stats, setStats] = useState(null);
-  const [filter, setFilter] = useState('all');
   const [catFilter, setCatFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('reports');
 
   useEffect(() => { loadData(); }, []);
   const loadData = async () => {
@@ -17,153 +15,231 @@ function Dashboard() {
   };
 
   const filtered = reports.filter(r => {
-    if (filter !== 'all') {
-      if (filter === 'critical' && r.priority_score < 80) return false;
-      if (filter === 'high' && (r.priority_score < 60 || r.priority_score >= 80)) return false;
-      if (filter === 'medium' && (r.priority_score < 40 || r.priority_score >= 60)) return false;
-      if (filter === 'low' && r.priority_score >= 40) return false;
-    }
-    if (catFilter !== 'all' && !catFilter.split(',').includes(r.category)) return false;
+    if (catFilter === 'all') return true;
+    if (catFilter === 'excavation') return r.category === 'excavation';
+    if (catFilter === 'infrastructure') return ['water_leak', 'lighting', 'sidewalk', 'road_damage'].includes(r.category);
+    if (catFilter === 'traffic') return r.category === 'traffic';
+    if (catFilter === 'suggestion') return r.category === 'suggestion';
     return true;
   });
 
-  const pColor = (s) => s >= 80 ? '#DC2626' : s >= 60 ? '#F97316' : s >= 40 ? '#D4A017' : '#006838';
-  const statusAr = { new: 'جديد', pending: 'بانتظار', in_progress: 'قيد المعالجة', resolved: 'تم الحل' };
+  const pColor = (s) => s >= 80 ? '#D94545' : s >= 60 ? '#D4A574' : '#1B7F5F';
+  const statusStyle = (st) => {
+    if (st === 'new' || st === 'pending') return { bg: '#D94545', color: '#fff', label: 'عاجل' };
+    if (st === 'in_progress') return { bg: '#D4A574', color: '#fff', label: 'قيد المعالجة' };
+    if (st === 'resolved') return { bg: '#1B7F5F', color: '#fff', label: 'تم الإنجاز' };
+    return { bg: '#F5F1ED', color: '#1A1613', label: st };
+  };
 
   const getLeaderboard = () => {
     if (!reports.length) return [];
     const ent = {};
-    reports.forEach(r => { const e = r.responsible_entity; if (!e || e === 'غير محدد') return; if (!ent[e]) ent[e] = { entity: e, total: 0, pending: 0, resolved: 0 }; ent[e].total++; r.status === 'resolved' ? ent[e].resolved++ : ent[e].pending++; });
-    return Object.values(ent).map(e => ({ ...e, entityAr: ENTITY_NAMES_AR[e.entity] || e.entity, resolveRate: e.total > 0 ? Math.round((e.resolved / e.total) * 100) : 0, delayRate: e.total > 0 ? Math.round((e.pending / e.total) * 100) : 0 })).sort((a, b) => b.delayRate - a.delayRate);
+    reports.forEach(r => {
+      const e = r.responsible_entity;
+      if (!e || e === 'غير محدد') return;
+      if (!ent[e]) ent[e] = { entity: e, total: 0, pending: 0, resolved: 0 };
+      ent[e].total++;
+      r.status === 'resolved' ? ent[e].resolved++ : ent[e].pending++;
+    });
+    return Object.values(ent).map(e => ({
+      ...e,
+      entityAr: ENTITY_NAMES_AR[e.entity] || e.entity,
+      resolveRate: e.total > 0 ? Math.round((e.resolved / e.total) * 100) : 0,
+    })).sort((a, b) => a.resolveRate - b.resolveRate);
   };
 
   if (loading) return (
     <div style={{ ...s.page, textAlign: 'center', paddingTop: 100 }}>
-      <div style={{ width: 40, height: 40, border: '3px solid rgba(0,104,56,0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
-      <p style={{ color: 'var(--text-dim)', marginTop: 16 }}>جاري تحميل البيانات...</p>
+      <div style={{ width: 44, height: 44, border: '3px solid rgba(27,127,95,0.12)', borderTopColor: '#1B7F5F', borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: '#6B6560', marginTop: 16 }}>جاري تحميل البيانات...</p>
     </div>
   );
 
   return (
     <div style={s.page}>
-      <div style={{ marginBottom: 20 }} className="fade-up">
-        <h2 style={{ color: 'var(--primary)', fontSize: 22, fontWeight: 800 }}>لوحة التحكم</h2>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 4 }}>مرتبة تلقائياً حسب الأولوية الذكية</p>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }} className="fade-up">
+        <h1 style={{ fontSize: 36, fontWeight: 800, color: '#1A1613', textAlign: 'right' }}>لوحة التحكم</h1>
+        <p style={{ color: '#6B6560', fontSize: 16, marginTop: 4 }}>إحصائيات وتحليلات شاملة للبلاغات</p>
       </div>
 
+      {/* Stats Grid */}
       {stats && (
         <div style={s.statsGrid} className="fade-up">
           {[
-            { label: 'إجمالي', value: stats.total, color: 'var(--primary)', icon: '📊' },
-            { label: 'بانتظار', value: stats.pending, color: 'var(--orange)', icon: '⏳' },
-            { label: 'تم الحل', value: stats.resolved, color: 'var(--green)', icon: '✅' },
-            { label: 'حرجة', value: stats.critical, color: 'var(--red)', icon: '🔴' },
+            { label: 'إجمالي البلاغات', value: stats.total, icon: '⚠️', color: '#1B7F5F', change: '+12%', up: true },
+            { label: 'قيد المعالجة', value: stats.inProgress + stats.pending, icon: '⏱️', color: '#9D7C5F', change: '-5%', up: false },
+            { label: 'تم الإنجاز', value: stats.resolved, icon: '✅', color: '#4A8FDB', change: '+18%', up: true },
+            { label: 'حرجة', value: stats.critical, icon: '🔴', color: '#D94545', change: '+3%', up: true },
           ].map((item, i) => (
-            <div key={i} className="glass" style={{ padding: '14px 8px', textAlign: 'center' }}>
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
-              <div style={{ fontSize: 24, fontWeight: 800, color: item.color, marginTop: 4 }}>{item.value}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2 }}>{item.label}</div>
+            <div key={i} style={s.statCard}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div style={{ ...s.statBadge, background: item.up ? 'rgba(74,143,219,0.1)' : 'rgba(157,124,95,0.1)', color: item.up ? '#4A8FDB' : '#9D7C5F' }}>
+                  {item.up ? '📈' : '📉'} {item.change}
+                </div>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: `${item.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                  {item.icon}
+                </div>
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: '#1A1613', marginBottom: 4 }}>{item.value}</div>
+              <div style={{ fontSize: 13, color: '#6B6560' }}>{item.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div style={s.tabs} className="fade-up">
-        {[['reports', `البلاغات (${filtered.length})`], ['leaderboard', 'ترتيب الشركات']].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{ ...s.tabBtn, ...(tab === id ? s.tabActive : {}) }}>{label}</button>
-        ))}
+      {/* Leaderboard */}
+      <div style={s.card} className="fade-up">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+          <span style={{ fontSize: 28 }}>🏆</span>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A1613', margin: 0 }}>تصنيف الشركات</h2>
+        </div>
+
+        {getLeaderboard().length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#6B6560', padding: 24 }}>لا توجد بيانات كافية</p>
+        ) : (
+          getLeaderboard().map((c, i) => (
+            <div key={c.entity} style={s.leaderRow}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: i === 0 ? '#9D7C5F' : i === 1 ? '#D4A574' : '#F5F1ED',
+                  color: i < 2 ? '#fff' : '#1A1613',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 15, fontWeight: 700, flexShrink: 0,
+                }}>{i + 1}</div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1613', margin: '0 0 2px' }}>{c.entityAr}</p>
+                  <p style={{ fontSize: 12, color: '#6B6560', margin: 0 }}>{c.pending} متأخرة من أصل {c.total}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 160 }}>
+                <div style={{ flex: 1, background: '#F5F1ED', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: '#1B7F5F', borderRadius: 6, width: `${c.resolveRate}%`, transition: 'width 1s ease' }} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1613', minWidth: 36 }}>{c.resolveRate}%</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      {tab === 'reports' ? (
-        <>
-          <div style={s.filterRow} className="fade-up">
-            {[{ id: 'all', label: 'الكل', icon: '📋' }, { id: 'excavation', label: 'حفريات', icon: '🚧' }, { id: 'traffic', label: 'مرورية', icon: '🚦' }, { id: 'water_leak,lighting,sidewalk,road_damage,debris', label: 'بنية تحتية', icon: '🔧' }, { id: 'suggestion', label: 'اقتراحات', icon: '💡' }].map(f => (
+      {/* Reports */}
+      <div style={s.card} className="fade-up">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A1613', margin: 0 }}>البلاغات الحديثة</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 16 }}>🔽</span>
+            {[
+              { id: 'all', label: 'الكل' },
+              { id: 'excavation', label: 'حفريات' },
+              { id: 'infrastructure', label: 'بنية تحتية' },
+              { id: 'traffic', label: 'مرورية' },
+              { id: 'suggestion', label: 'اقتراحات' },
+            ].map(f => (
               <button key={f.id} onClick={() => setCatFilter(f.id)}
-                style={{ ...s.filterBtn, ...(catFilter === f.id ? s.filterActive : {}) }}>{f.icon} {f.label}</button>
+                style={{
+                  ...s.filterBtn,
+                  ...(catFilter === f.id ? s.filterActive : {}),
+                }}>{f.label}</button>
             ))}
           </div>
-          <div style={{ ...s.filterRow, marginBottom: 16 }} className="fade-up">
-            {[['all', 'الكل'], ['critical', 'حرج'], ['high', 'مرتفع'], ['medium', 'متوسط'], ['low', 'منخفض']].map(([id, label]) => (
-              <button key={id} onClick={() => setFilter(id)}
-                style={{ ...s.filterBtn, ...(filter === id ? s.filterActive : {}) }}>{label}</button>
-            ))}
-          </div>
+        </div>
 
-          {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 50, color: 'var(--text-faint)' }}><p style={{ fontSize: 32, marginBottom: 8 }}>📭</p><p>لا توجد بلاغات</p></div>
-          ) : (
-            filtered.map((r, i) => (
-              <div key={r.id} className="glass fade-up"
-                style={{ padding: 16, marginBottom: 10, borderRight: `4px solid ${pColor(r.priority_score)}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: 14 }}>{r.category_ar || r.category || 'غير مصنف'}</span>
-                  <div style={{ background: `${pColor(r.priority_score)}15`, padding: '4px 10px', borderRadius: 10, color: pColor(r.priority_score), fontSize: 13, fontWeight: 800 }}>{r.priority_score}</div>
-                </div>
-                {r.responsible_entity && (
-                  <span style={{ display: 'inline-block', background: 'rgba(43,125,233,0.06)', color: 'var(--blue)', padding: '2px 8px', borderRadius: 8, fontSize: 10, marginBottom: 8 }}>
-                    {ENTITY_NAMES_AR[r.responsible_entity] || r.responsible_entity}
-                  </span>
-                )}
-                {r.description && <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 10px', lineHeight: 1.6 }}>{r.description}</p>}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-faint)' }}>
-                  <span>{r.neighborhood || ''}</span>
-                  <span style={{
-                    color: r.status === 'resolved' ? 'var(--green)' : 'var(--orange)',
-                    background: r.status === 'resolved' ? 'rgba(0,104,56,0.06)' : 'rgba(249,115,22,0.06)',
-                    padding: '2px 8px', borderRadius: 8,
-                  }}>{statusAr[r.status] || r.status}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </>
-      ) : (
-        <>
-          <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 16 }}>ترتيب الشركات حسب نسبة التأخير</p>
-          {getLeaderboard().length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 50, color: 'var(--text-faint)' }}><p>أرسلي بلاغات أولاً</p></div>
-          ) : (
-            getLeaderboard().map((c, i) => (
-              <div key={c.entity} className="glass fade-up" style={{ padding: 16, marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 34, height: 34, borderRadius: 10,
-                      background: i === 0 ? 'rgba(220,38,38,0.08)' : i === 1 ? 'rgba(249,115,22,0.08)' : 'var(--primary-light)',
-                      color: i === 0 ? 'var(--red)' : i === 1 ? 'var(--orange)' : 'var(--primary)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800,
-                    }}>#{i + 1}</div>
-                    <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14 }}>{c.entityAr}</span>
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#6B6560' }}>
+            <p style={{ fontSize: 28, marginBottom: 8 }}>📭</p>
+            <p>لا توجد بلاغات</p>
+          </div>
+        ) : (
+          filtered.slice(0, 10).map((r) => {
+            const st = statusStyle(r.status);
+            return (
+              <div key={r.id} style={s.reportRow}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: '#6B6560', direction: 'ltr' }}>{r.id?.slice(0, 13)}</span>
+                    <span style={{ background: st.bg, color: st.color, padding: '4px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600 }}>{st.label}</span>
                   </div>
-                  <span style={{ color: 'var(--red)', fontSize: 13, fontWeight: 800 }}>{c.delayRate}%</span>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1613', margin: '0 0 4px' }}>{r.category_ar || r.category || 'غير مصنف'}</p>
+                  <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>{r.neighborhood || ''}</p>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 6, height: 6, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 6, width: `${c.resolveRate}%`, background: c.resolveRate >= 70 ? 'var(--green)' : c.resolveRate >= 40 ? 'var(--yellow)' : 'var(--red)', transition: 'width 1.2s ease' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--text-faint)' }}>
-                  <span>إجمالي: {c.total}</span>
-                  <span style={{ color: 'var(--orange)' }}>معلقة: {c.pending}</span>
-                  <span style={{ color: 'var(--green)' }}>منجزة: {c.resolved}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: 11, color: '#6B6560', marginBottom: 4 }}>الأولوية</p>
+                    <span style={{
+                      background: `${pColor(r.priority_score)}12`,
+                      color: pColor(r.priority_score),
+                      padding: '4px 12px', borderRadius: 10,
+                      fontSize: 14, fontWeight: 700,
+                    }}>{r.priority_score}/100</span>
+                  </div>
+                  <div style={{ textAlign: 'center', minWidth: 80 }}>
+                    <p style={{ fontSize: 11, color: '#6B6560', marginBottom: 4 }}>الجهة</p>
+                    <p style={{ fontSize: 13, color: '#1A1613', margin: 0, fontWeight: 500 }}>{ENTITY_NAMES_AR[r.responsible_entity] || r.responsible_entity || '-'}</p>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: 11, color: '#6B6560', marginBottom: 4 }}>التاريخ</p>
+                    <p style={{ fontSize: 13, color: '#1A1613', margin: 0 }}>{new Date(r.created_at).toLocaleDateString('sv')}</p>
+                  </div>
                 </div>
               </div>
-            ))
-          )}
-        </>
-      )}
+            );
+          })
+        )}
+
+        {filtered.length > 10 && (
+          <div style={{ textAlign: 'center', marginTop: 20 }}>
+            <button style={s.moreBtn}>عرض المزيد</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 const s = {
-  page: { padding: '20px 16px', maxWidth: 600, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
-  statsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 20 },
-  tabs: { display: 'flex', marginBottom: 16, background: '#fff', borderRadius: 14, padding: 3, border: '1px solid rgba(0,0,0,0.04)' },
-  tabBtn: { flex: 1, padding: '10px 16px', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 13, background: 'transparent', color: 'var(--text-dim)', fontFamily: 'Tajawal' },
-  tabActive: { background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 },
-  filterRow: { display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 },
-  filterBtn: { padding: '6px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap', background: '#fff', color: 'var(--text-dim)', fontFamily: 'Tajawal', boxShadow: '0 1px 4px rgba(0,0,0,0.03)' },
-  filterActive: { background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 },
+  page: { padding: '40px 20px', maxWidth: 1200, margin: '0 auto', minHeight: 'calc(100vh - 140px)' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 },
+  statCard: {
+    background: '#fff', borderRadius: 20, padding: 24,
+    border: '2px solid rgba(157,124,95,0.15)', boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+  },
+  statBadge: {
+    padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+  },
+  card: {
+    background: '#fff', borderRadius: 20, padding: 28,
+    border: '2px solid rgba(157,124,95,0.15)', marginBottom: 28,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+  },
+  leaderRow: {
+    display: 'flex', alignItems: 'center', gap: 16,
+    padding: '16px 20px', background: 'rgba(245,241,237,0.4)',
+    borderRadius: 14, marginBottom: 10, flexWrap: 'wrap',
+  },
+  filterBtn: {
+    padding: '8px 16px', borderRadius: 10, border: 'none',
+    cursor: 'pointer', fontSize: 13, fontWeight: 500,
+    background: '#F5F1ED', color: '#6B6560',
+    fontFamily: "'Tajawal', sans-serif",
+  },
+  filterActive: {
+    background: '#1B7F5F', color: '#fff', fontWeight: 700,
+  },
+  reportRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '20px 24px', background: 'rgba(245,241,237,0.3)',
+    borderRadius: 14, marginBottom: 10, flexWrap: 'wrap', gap: 16,
+    borderBottom: '1px solid rgba(157,124,95,0.08)',
+  },
+  moreBtn: {
+    background: '#F5F1ED', color: '#1A1613',
+    padding: '12px 32px', borderRadius: 14, border: 'none',
+    fontSize: 14, fontWeight: 600, cursor: 'pointer',
+    fontFamily: "'Tajawal', sans-serif",
+  },
 };
 
 export default Dashboard;
