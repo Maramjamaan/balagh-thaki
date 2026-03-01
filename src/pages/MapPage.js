@@ -1,176 +1,313 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { getAllReports } from '../services/reportService';
+import { getClusterStats } from '../services/clusterService';
+import { ENTITY_NAMES_AR, severityToArabic } from '../services/aiService';
+import 'leaflet/dist/leaflet.css';
 
-const excavations = [
-  { id: 1, company: 'المياه الوطنية (NWC)', location: 'طريق الملك فهد', lat: 24.7136, lng: 46.6753, daysDelayed: 45, licenseDays: 60, status: 'متأخرة' },
-  { id: 2, company: 'السعودية للكهرباء (SEC)', location: 'طريق الملك عبدالله', lat: 24.7200, lng: 46.6800, daysDelayed: 0, licenseDays: 30, status: 'في الموعد' },
-  { id: 3, company: 'STC', location: 'طريق العليا', lat: 24.7300, lng: 46.6700, daysDelayed: 15, licenseDays: 45, status: 'متأخرة' },
-  { id: 4, company: 'موبايلي', location: 'شارع التخصصي', lat: 24.7100, lng: 46.6900, daysDelayed: 0, licenseDays: 30, status: 'في الموعد' },
-  { id: 5, company: 'المياه الوطنية (NWC)', location: 'طريق الملك خالد', lat: 24.7400, lng: 46.6600, daysDelayed: 22, licenseDays: 60, status: 'متأخرة' },
-];
+// === Fix default Leaflet icon issue in React ===
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+// === Custom colored markers using SVG ===
+function createColoredIcon(color, size = 32, hasCluster = false) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size + 12}" viewBox="0 0 ${size} ${size + 12}">
+      <defs>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.25"/>
+        </filter>
+      </defs>
+      <path d="M${size / 2} ${size + 8} C${size / 2} ${size + 8} ${size - 2} ${size * 0.6} ${size - 2} ${size / 2.2}
+        A${size / 2.2 - 1} ${size / 2.2 - 1} 0 1 0 2 ${size / 2.2}
+        C2 ${size * 0.6} ${size / 2} ${size + 8} ${size / 2} ${size + 8}Z"
+        fill="${color}" filter="url(#shadow)" stroke="white" stroke-width="1.5"/>
+      ${hasCluster ? `<circle cx="${size / 2}" cy="${size / 2.2}" r="${size / 4}" fill="white" opacity="0.9"/>
+        <circle cx="${size / 2}" cy="${size / 2.2}" r="${size / 6}" fill="${color}"/>` :
+        `<circle cx="${size / 2}" cy="${size / 2.2}" r="${size / 5}" fill="white" opacity="0.85"/>`}
+    </svg>`;
+
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [size, size + 12],
+    iconAnchor: [size / 2, size + 8],
+    popupAnchor: [0, -(size + 4)],
+  });
+}
+
+// === Priority → Color ===
+function getPriorityColor(score) {
+  if (score >= 85) return '#991B1B';
+  if (score >= 70) return '#DC2626';
+  if (score >= 55) return '#F97316';
+  if (score >= 40) return '#EAB308';
+  return '#22C55E';
+}
+
+// === Category → Icon emoji ===
+function getCategoryEmoji(category) {
+  const map = {
+    excavation: '🚧', water_leak: '💧', lighting: '💡', traffic: '🚦',
+    sidewalk: '🚶', road_damage: '🛣️', debris: '🏗️', suggestion: '💡',
+  };
+  return map[category] || '📋';
+}
+
+// === Status → Arabic ===
+function getStatusAr(status) {
+  if (status === 'resolved') return { label: 'تم الحل', color: '#22C55E' };
+  if (status === 'in_progress') return { label: 'قيد المعالجة', color: '#3B82F6' };
+  return { label: 'جديد', color: '#EAB308' };
+}
+
+// === Auto-fit map to markers ===
+function FitBounds({ reports }) {
+  const map = useMap();
+  useEffect(() => {
+    if (reports.length > 0) {
+      const bounds = L.latLngBounds(reports.map(r => [r.latitude, r.longitude]));
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [reports, map]);
+  return null;
+}
 
 function MapPage() {
-  const [selected, setSelected] = useState(null);
-  const [filter, setFilter] = useState('الكل');
+  const [reports, setReports] = useState([]);
+  const [clusters, setClusters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // all | critical | clusters | category
+  const [showLegend, setShowLegend] = useState(true);
 
-  const filtered = excavations.filter(e => {
-    if (filter === 'متأخرة فقط') return e.status === 'متأخرة';
-    if (filter === 'في الموعد') return e.status === 'في الموعد';
+  useEffect(() => {
+    loadMapData();
+  }, []);
+
+  const loadMapData = async () => {
+    setLoading(true);
+    try {
+      const [r, c] = await Promise.all([
+        getAllReports().catch(() => []),
+        getClusterStats().catch(() => []),
+      ]);
+      setReports((r || []).filter(rep => rep.latitude && rep.longitude));
+      setClusters(c || []);
+    } catch (err) {
+      console.error('Map load error:', err);
+    }
+    setLoading(false);
+  };
+
+  // === Filter reports ===
+  const filteredReports = reports.filter(r => {
+    if (filter === 'critical') return r.priority_score >= 70;
+    if (filter === 'clusters') return r.cluster_id;
+    if (filter === 'new') return r.status === 'new';
+    if (filter === 'resolved') return r.status === 'resolved';
     return true;
   });
 
-  return (
-    <div style={s.page}>
-      <div style={s.container}>
-        {/* Header */}
-        <div style={{ marginBottom: 28, textAlign: 'right' }}>
-          <h1 style={s.title}>خريطة الحفريات</h1>
-          <p style={s.subtitle}>متابعة حية لجميع الحفريات المرخصة في الرياض</p>
+  // Riyadh center default
+  const center = reports.length > 0
+    ? [reports[0].latitude, reports[0].longitude]
+    : [24.7136, 46.6753];
+
+  if (loading) {
+    return (
+      <div style={s.page}>
+        <div style={{ textAlign: 'center', padding: 80 }}>
+          <div style={s.spinner} />
+          <p style={{ color: 'var(--text-dim)', marginTop: 16, fontSize: 14 }}>جاري تحميل الخريطة...</p>
         </div>
+      </div>
+    );
+  }
 
-        <div style={s.grid}>
-          {/* Map */}
-          <div style={s.mapWrapper}>
-            <div style={s.mapCard}>
-              {/* Map Header */}
-              <div style={s.mapHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span style={{ color: '#fff', fontSize: 15, fontWeight: 500 }}>خريطة الرياض التفاعلية</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-                  <select value={filter} onChange={e => setFilter(e.target.value)} style={s.filterSelect}>
-                    <option>الكل</option>
-                    <option>متأخرة فقط</option>
-                    <option>في الموعد</option>
-                  </select>
-                </div>
-              </div>
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Top bar */}
+      <div style={s.topBar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1613', margin: 0 }}>🗺️ خريطة البلاغات</h2>
+          <span style={{ padding: '3px 10px', borderRadius: 8, fontSize: 12, background: 'rgba(27,127,95,0.08)', color: '#1B7F5F', fontWeight: 600 }}>
+            {filteredReports.length} بلاغ
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { id: 'all', label: 'الكل' },
+            { id: 'critical', label: '🚨 حرج' },
+            { id: 'clusters', label: '📍 مجموعات' },
+            { id: 'new', label: '⏳ جديد' },
+          ].map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)}
+              style={{ ...s.filterBtn, ...(filter === f.id ? s.filterActive : {}) }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-              {/* Map Area */}
-              <div style={s.mapArea}>
-                {/* Grid bg */}
-                <div style={s.gridBg}>
-                  {Array.from({ length: 100 }).map((_, i) => (
-                    <div key={i} style={{ border: '1px solid rgba(157,124,95,0.06)' }} />
-                  ))}
-                </div>
+      {/* Map */}
+      <div style={{ flex: 1, position: 'relative' }}>
+        <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}
+          zoomControl={false}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-                {/* Markers */}
-                {filtered.map(exc => {
-                  const left = `${((exc.lng - 46.65) / 0.05) * 100}%`;
-                  const top = `${100 - ((exc.lat - 24.70) / 0.05) * 100}%`;
-                  const isDelayed = exc.status === 'متأخرة';
-                  return (
-                    <button key={exc.id} onClick={() => setSelected(exc)}
-                      style={{ ...s.marker, left, top }}>
-                      {isDelayed && <span style={s.pulse} />}
-                      <div style={{ ...s.dot, background: isDelayed ? '#DC3545' : '#1B7F5F' }}>
-                        <div style={s.dotInner} />
+          {filteredReports.length > 0 && <FitBounds reports={filteredReports} />}
+
+          {/* Cluster circles (200m radius) */}
+          {filter !== 'resolved' && clusters.map((cluster, i) => (
+            <Circle key={`cluster-${i}`}
+              center={[cluster.center.latitude, cluster.center.longitude]}
+              radius={200}
+              pathOptions={{
+                color: '#2563EB',
+                fillColor: '#2563EB',
+                fillOpacity: 0.08,
+                weight: 2,
+                dashArray: '6 4',
+              }}
+            />
+          ))}
+
+          {/* Report markers */}
+          {filteredReports.map((report, i) => {
+            const color = getPriorityColor(report.priority_score);
+            const hasCluster = !!report.cluster_id;
+            const icon = createColoredIcon(color, hasCluster ? 36 : 30, hasCluster);
+            const statusInfo = getStatusAr(report.status);
+
+            return (
+              <Marker key={i} position={[report.latitude, report.longitude]} icon={icon}>
+                <Popup maxWidth={280} minWidth={220}>
+                  <div dir="rtl" style={{ fontFamily: "'Tajawal', sans-serif", padding: 4 }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 24 }}>{getCategoryEmoji(report.category)}</span>
+                      <div>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1613', margin: 0 }}>
+                          {report.category_ar || report.category || 'غير مصنف'}
+                        </p>
+                        <p style={{ fontSize: 12, color: '#6B6560', margin: '2px 0 0' }}>
+                          {report.subcategory_ar || ''}
+                        </p>
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
 
-                {/* Legend */}
-                <div style={s.legend}>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>دليل الألوان</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#DC3545' }} />
-                    <span style={{ fontSize: 13 }}>متأخرة</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#1B7F5F' }} />
-                    <span style={{ fontSize: 13 }}>في الموعد</span>
-                  </div>
-                </div>
+                    {/* Priority + Status */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      <div style={{
+                        flex: 1, padding: '8px 10px', borderRadius: 10, textAlign: 'center',
+                        background: `${color}12`, border: `1px solid ${color}25`,
+                      }}>
+                        <p style={{ fontSize: 20, fontWeight: 800, color, margin: 0 }}>{report.priority_score}</p>
+                        <p style={{ fontSize: 10, color: '#6B6560', margin: 0 }}>أولوية</p>
+                      </div>
+                      <div style={{
+                        flex: 1, padding: '8px 10px', borderRadius: 10, textAlign: 'center',
+                        background: `${statusInfo.color}12`, border: `1px solid ${statusInfo.color}25`,
+                      }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: statusInfo.color, margin: 0 }}>{statusInfo.label}</p>
+                        <p style={{ fontSize: 10, color: '#6B6560', margin: 0 }}>الحالة</p>
+                      </div>
+                    </div>
 
-                {/* Scale */}
-                <div style={s.scale}>
-                  <div style={{ height: 3, width: 60, background: '#1A1613', borderRadius: 2 }} />
-                  <span style={{ fontSize: 11 }}>5 كم</span>
-                </div>
+                    {/* Details */}
+                    <div style={{ fontSize: 12, color: '#6B6560' }}>
+                      {[
+                        ['الشدة', `${report.ai_severity || '—'}/5 — ${severityToArabic(report.ai_severity)}`],
+                        ['الحي', report.neighborhood || '—'],
+                        ['الجهة', ENTITY_NAMES_AR[report.responsible_entity] || report.responsible_entity || '—'],
+                        ['الثقة', report.ai_confidence ? `${Math.round(report.ai_confidence * 100)}%` : '—'],
+                      ].map(([label, val], j) => (
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                          <span>{label}</span>
+                          <span style={{ color: '#1A1613', fontWeight: 600 }}>{val}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Cluster badge */}
+                    {hasCluster && (
+                      <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)', textAlign: 'center' }}>
+                        <span style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>
+                          📍 جزء من مجموعة بلاغات متشابهة
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Description */}
+                    {report.description && (
+                      <p style={{ fontSize: 12, color: '#6B6560', margin: '8px 0 0', lineHeight: 1.6, borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 8 }}>
+                        {report.description}
+                      </p>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+
+        {/* Legend */}
+        {showLegend && (
+          <div style={s.legend}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1A1613' }}>دليل الألوان</span>
+              <button onClick={() => setShowLegend(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#6B6560' }}>✕</button>
+            </div>
+            {[
+              { color: '#991B1B', label: 'حرج جداً (85+)' },
+              { color: '#DC2626', label: 'حرج (70-84)' },
+              { color: '#F97316', label: 'مرتفع (55-69)' },
+              { color: '#EAB308', label: 'متوسط (40-54)' },
+              { color: '#22C55E', label: 'منخفض (<40)' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 12, height: 12, borderRadius: 4, background: item.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: '#6B6560' }}>{item.label}</span>
               </div>
+            ))}
+            <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 6, marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px dashed #2563EB', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: '#2563EB' }}>نطاق مجموعة (200م)</span>
             </div>
           </div>
+        )}
 
-          {/* Sidebar */}
-          <div style={s.sidebar}>
-            {/* Stats */}
-            <div style={s.card}>
-              <h3 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 20px' }}>إحصائيات الحفريات</h3>
-              <div style={s.statRow}>
-                <span style={{ color: '#6B6560', fontSize: 14 }}>إجمالي الحفريات</span>
-                <span style={{ fontSize: 22, fontWeight: 700 }}>156</span>
-              </div>
-              <div style={s.statRow}>
-                <span style={{ color: '#6B6560', fontSize: 14 }}>متأخرة</span>
-                <span style={{ fontSize: 22, fontWeight: 700, color: '#DC3545' }}>30</span>
-              </div>
-              <div style={s.statRow}>
-                <span style={{ color: '#6B6560', fontSize: 14 }}>في الموعد</span>
-                <span style={{ fontSize: 22, fontWeight: 700, color: '#1B7F5F' }}>126</span>
-              </div>
+        {/* Show legend button if hidden */}
+        {!showLegend && (
+          <button onClick={() => setShowLegend(true)} style={s.legendToggle}>
+            🎨
+          </button>
+        )}
+
+        {/* Stats overlay */}
+        <div style={s.statsOverlay}>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 18, fontWeight: 800, color: '#1B7F5F', margin: 0 }}>{reports.length}</p>
+              <p style={{ fontSize: 10, color: '#6B6560', margin: 0 }}>إجمالي</p>
             </div>
-
-            {/* Selected or Placeholder */}
-            {selected ? (
-              <div style={s.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>تفاصيل الحفرية</h3>
-                  <button onClick={() => setSelected(null)} style={s.closeBtn}>✕</button>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <p style={s.detailLabel}>الموقع</p>
-                  <p style={s.detailValue}>{selected.location}</p>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <p style={s.detailLabel}>الشركة</p>
-                  <p style={s.detailValue}>{selected.company}</p>
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <p style={s.detailLabel}>الحالة</p>
-                  <span style={{
-                    display: 'inline-block', padding: '4px 14px', borderRadius: 10,
-                    fontSize: 13, fontWeight: 600, color: '#fff',
-                    background: selected.status === 'متأخرة' ? '#DC3545' : '#1B7F5F',
-                  }}>{selected.status}</span>
-                </div>
-                {selected.daysDelayed > 0 ? (
-                  <div style={{ ...s.alertBox, background: 'rgba(220,53,69,0.08)', border: '2px solid rgba(220,53,69,0.2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC3545" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                      <span style={{ fontWeight: 500 }}>متأخرة عن الموعد</span>
-                    </div>
-                    <p style={{ fontSize: 24, fontWeight: 700, color: '#DC3545', margin: '0 0 4px' }}>{selected.daysDelayed} يوم</p>
-                    <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>من أصل {selected.licenseDays} يوم ترخيص</p>
-                  </div>
-                ) : (
-                  <div style={{ ...s.alertBox, background: 'rgba(27,127,95,0.08)', border: '2px solid rgba(27,127,95,0.2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B7F5F" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                      <span style={{ fontWeight: 500 }}>في الموعد المحدد</span>
-                    </div>
-                    <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>مدة الترخيص: {selected.licenseDays} يوم</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={s.placeholder}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <p style={{ color: '#6B6560', margin: '12px 0 0', fontSize: 14 }}>انقر على أي علامة في الخريطة لعرض التفاصيل</p>
-              </div>
-            )}
-
-            {/* About */}
-            <div style={s.aboutCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1613" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>عن الخريطة</h3>
-              </div>
-              <p style={{ fontSize: 13, color: '#6B6560', lineHeight: 1.8, margin: 0 }}>
-                تعرض الخريطة جميع الحفريات المرخصة في الرياض مع عداد تنازلي لكل منها. العلامات الحمراء تشير للحفريات المتأخرة، والخضراء للحفريات في الموعد.
-              </p>
+            <div style={{ width: 1, background: 'rgba(0,0,0,0.08)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 18, fontWeight: 800, color: '#DC2626', margin: 0 }}>{reports.filter(r => r.priority_score >= 70).length}</p>
+              <p style={{ fontSize: 10, color: '#6B6560', margin: 0 }}>حرج</p>
+            </div>
+            <div style={{ width: 1, background: 'rgba(0,0,0,0.08)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 18, fontWeight: 800, color: '#2563EB', margin: 0 }}>{clusters.length}</p>
+              <p style={{ fontSize: 10, color: '#6B6560', margin: 0 }}>مجموعات</p>
             </div>
           </div>
         </div>
@@ -180,101 +317,42 @@ function MapPage() {
 }
 
 const s = {
-  page: { minHeight: 'calc(100vh - 140px)', padding: '40px 16px' },
-  container: { maxWidth: 1200, margin: '0 auto' },
-  title: { fontSize: 36, fontWeight: 700, color: '#1A1613', margin: '0 0 6px', fontFamily: "'Tajawal', sans-serif" },
-  subtitle: { fontSize: 16, color: '#6B6560', margin: 0 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 },
-  mapWrapper: { minWidth: 0 },
-  mapCard: {
-    background: '#fff', borderRadius: 20, overflow: 'hidden',
-    border: '2px solid rgba(157,124,95,0.15)', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+  page: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  spinner: {
+    width: 44, height: 44, border: '3px solid rgba(27,127,95,0.12)', borderTopColor: '#1B7F5F',
+    borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite',
   },
-  mapHeader: {
-    background: '#1B7F5F', padding: '14px 20px',
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  topBar: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10,
+    padding: '12px 20px', background: '#fff', borderBottom: '1px solid rgba(157,124,95,0.1)',
+    zIndex: 1000,
   },
-  filterSelect: {
-    background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
-    borderRadius: 8, padding: '6px 12px', color: '#fff', fontSize: 13,
-    outline: 'none', fontFamily: "'Tajawal', sans-serif", cursor: 'pointer',
+  filterBtn: {
+    padding: '6px 12px', border: '1px solid rgba(157,124,95,0.15)', background: '#fff',
+    borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#6B6560',
+    fontFamily: "'Tajawal', sans-serif", transition: 'all 0.2s',
   },
-  mapArea: {
-    position: 'relative', height: 500, background: 'rgba(245,241,237,0.3)', padding: 32,
-  },
-  gridBg: {
-    position: 'absolute', inset: 0,
-    display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gridTemplateRows: 'repeat(10, 1fr)',
-    opacity: 0.6,
-  },
-  marker: {
-    position: 'absolute', transform: 'translate(-50%, -50%)',
-    background: 'none', border: 'none', cursor: 'pointer', padding: 0, zIndex: 2,
-  },
-  pulse: {
-    position: 'absolute', width: 24, height: 24, borderRadius: '50%',
-    background: 'rgba(220,53,69,0.3)', top: '50%', left: '50%',
-    transform: 'translate(-50%, -50%)',
-    animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite',
-  },
-  dot: {
-    width: 24, height: 24, borderRadius: '50%', position: 'relative',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transition: 'transform 0.2s',
-  },
-  dotInner: {
-    position: 'absolute', top: -2, right: -2,
-    width: 10, height: 10, borderRadius: '50%',
-    background: '#fff', border: '2px solid currentColor',
+  filterActive: {
+    background: '#1B7F5F', color: '#fff', borderColor: '#1B7F5F',
   },
   legend: {
-    position: 'absolute', bottom: 16, left: 16,
-    background: '#fff', borderRadius: 14, padding: '14px 18px',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '2px solid rgba(157,124,95,0.15)',
+    position: 'absolute', bottom: 20, right: 20, zIndex: 1000,
+    background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)',
+    borderRadius: 14, padding: '12px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(157,124,95,0.1)', minWidth: 160,
   },
-  scale: {
-    position: 'absolute', bottom: 16, right: 16,
-    background: '#fff', borderRadius: 12, padding: '10px 14px',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '2px solid rgba(157,124,95,0.15)',
-    display: 'flex', alignItems: 'center', gap: 8,
+  legendToggle: {
+    position: 'absolute', bottom: 20, right: 20, zIndex: 1000,
+    width: 40, height: 40, borderRadius: 12, border: 'none',
+    background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
+    fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  sidebar: { display: 'flex', flexDirection: 'column', gap: 20 },
-  card: {
-    background: '#fff', borderRadius: 20, padding: 24,
-    border: '2px solid rgba(157,124,95,0.15)', boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-  },
-  statRow: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '10px 0', borderBottom: '1px solid rgba(157,124,95,0.08)',
-  },
-  placeholder: {
-    background: 'rgba(245,241,237,0.5)', borderRadius: 20, padding: 32,
-    border: '2px dashed rgba(157,124,95,0.2)', textAlign: 'center',
-  },
-  closeBtn: {
-    background: 'none', border: 'none', fontSize: 18, color: '#6B6560',
-    cursor: 'pointer', padding: '4px 8px',
-  },
-  detailLabel: { fontSize: 13, color: '#6B6560', margin: '0 0 2px' },
-  detailValue: { fontSize: 15, color: '#1A1613', margin: 0, fontWeight: 500 },
-  alertBox: { borderRadius: 14, padding: 16 },
-  aboutCard: {
-    background: 'linear-gradient(135deg, rgba(157,124,95,0.15), rgba(212,165,116,0.15))',
-    borderRadius: 20, padding: 24, border: '2px solid rgba(157,124,95,0.2)',
+  statsOverlay: {
+    position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+    background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)',
+    borderRadius: 14, padding: '10px 20px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(157,124,95,0.1)',
   },
 };
-
-// Ping animation
-const pingStyle = document.createElement('style');
-pingStyle.textContent = `
-  @keyframes ping {
-    75%, 100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
-  }
-  @media (max-width: 900px) {
-    div[style*="grid-template-columns: 1fr 340px"] {
-      grid-template-columns: 1fr !important;
-    }
-  }
-`;
-document.head.appendChild(pingStyle);
 
 export default MapPage;
