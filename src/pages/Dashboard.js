@@ -68,13 +68,13 @@ function Dashboard() {
         <div style={s.statsGrid} className="fade-up">
           {[
             { label: 'إجمالي البلاغات', value: stats.total, icon: '⚠️', color: '#1B7F5F', change: '+12%', up: true },
-            { label: 'قيد المعالجة', value: stats.inProgress + stats.pending, icon: '⏱️', color: '#9D7C5F', change: '-5%', up: false },
+            { label: 'قيد المعالجة', value: stats.inProgress + stats.pending, icon: '⏱️', color: '#ffc300', change: '-5%', up: false },
             { label: 'تم الإنجاز', value: stats.resolved, icon: '✅', color: '#4A8FDB', change: '+18%', up: true },
             { label: 'حرجة', value: stats.critical, icon: '🔴', color: '#D94545', change: '+3%', up: true },
           ].map((item, i) => (
             <div key={i} style={s.statCard}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <div style={{ ...s.statBadge, background: item.up ? 'rgba(74,143,219,0.1)' : 'rgba(157,124,95,0.1)', color: item.up ? '#4A8FDB' : '#9D7C5F' }}>
+                <div style={{ ...s.statBadge, background: item.up ? 'rgba(74,143,219,0.1)' : 'rgba(157,124,95,0.1)', color: item.up ? '#4A8FDB' : '#ffc300' }}>
                   {item.up ? '📈' : '📉'} {item.change}
                 </div>
                 <div style={{ width: 44, height: 44, borderRadius: 14, background: `${item.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
@@ -103,7 +103,7 @@ function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%',
-                  background: i === 0 ? '#9D7C5F' : i === 1 ? '#D4A574' : '#F5F1ED',
+                  background: i === 0 ? '#ffc300' : i === 1 ? '#D4A574' : '#F5F1ED',
                   color: i < 2 ? '#fff' : '#1A1613',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 15, fontWeight: 700, flexShrink: 0,

@@ -7,10 +7,10 @@
 }
 
 :root {
-  --primary: #1B7F5F;
+  --primary: #03471f;
   --primary-light: rgba(27, 127, 95, 0.08);
   --primary-border: rgba(27, 127, 95, 0.15);
-  --secondary: #9D7C5F;
+  --secondary: #ffc300;
   --secondary-light: rgba(157, 124, 95, 0.1);
   --accent: #D4A574;
   --bg: #FAFAF8;
@@ -23,7 +23,7 @@
   --red: #D94545;
   --orange: #F97316;
   --yellow: #D4A017;
-  --green: #1B7F5F;
+  --green: #03471f;
   --blue: #4A8FDB;
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }

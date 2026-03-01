@@ -185,7 +185,7 @@ function TrackReport() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
                 <div style={{ flex: 1, background: '#fff', borderRadius: 10, height: 14, overflow: 'hidden', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.08)' }}>
-                  <div style={{ height: '100%', borderRadius: 10, background: 'linear-gradient(90deg, #9D7C5F, #D4A574, #1B7F5F)', width: `${reportData.priority}%`, transition: 'width 1s ease' }} />
+                  <div style={{ height: '100%', borderRadius: 10, background: 'linear-gradient(90deg, #ffc300, #D4A574, #1B7F5F)', width: `${reportData.priority}%`, transition: 'width 1s ease' }} />
                 </div>
                 <span style={{ fontSize: 22, fontWeight: 700 }}>{reportData.priority}/100</span>
               </div>

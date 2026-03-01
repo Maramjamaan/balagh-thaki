@@ -135,7 +135,7 @@ const s = {
     fontFamily: "'Tajawal', sans-serif",
   },
   navLinkActive: {
-    background: '#9D7C5F',
+    background: '#ffc300',
     color: '#fff',
     fontWeight: 700,
   },
@@ -165,7 +165,7 @@ const s = {
     fontFamily: "'Tajawal', sans-serif",
   },
   mobileLinkActive: {
-    background: '#9D7C5F',
+    background: '#ffc300',
     color: '#fff',
     fontWeight: 700,
   },
