@@ -18,11 +18,25 @@ export function validateClassification(aiResult) {
   const em = checkEntityMismatch(aiResult.category, aiResult.responsible_entity);
   if (em) { warnings.push(em); adj -= 0.10; }
 
-  const sv = checkSeverityLogic(aiResult.category, aiResult.severity);
+  const sv = checkSeverityLogic(aiResult);
   if (sv) { warnings.push(sv); adj -= 0.05; }
 
-  if (aiResult.category === 'suggestion' && aiResult.severity > 2) { warnings.push('الاقتراحات عادةً منخفضة الشدة'); adj -= 0.05; }
-  if (aiResult.category === 'excavation' && !aiResult.has_safety_barriers && aiResult.severity < 4) { warnings.push('حفرية بدون حواجز سلامة'); }
+  // Excavation-specific validations
+  if (aiResult.excavation_stage === 'abandoned' && aiResult.severity < 4) {
+    warnings.push('حفرية مهجورة تستحق شدة 4+');
+    adj -= 0.05;
+  }
+  if (!aiResult.has_safety_barriers && aiResult.severity < 3) {
+    warnings.push('حفرية بدون حواجز سلامة — خطر مباشر');
+    adj -= 0.05;
+  }
+  if (aiResult.estimated_age_days > 60 && aiResult.license_status_estimate === 'likely_within_permit') {
+    warnings.push('عمر الحفرية لا يتوافق مع حالة الترخيص');
+    adj -= 0.08;
+  }
+  if (aiResult.blocks_traffic && aiResult.severity < 3) {
+    warnings.push('حفرية تعيق المرور تستحق شدة أعلى');
+  }
 
   adj = Math.max(0, Math.min(1, adj));
   const level = getConfidenceLevel(adj);
@@ -37,31 +51,32 @@ export function validateClassification(aiResult) {
       ? `✅ تصنيف تلقائي بثقة ${level.label} — ${aiResult.category_ar}`
       : level.action === 'confirm'
       ? `⚠️ يرجى تأكيد: ${aiResult.category_ar}`
-      : `❓ يرجى اختيار الفئة يدوياً`,
+      : `❓ يرجى اختيار نوع الحفرية يدوياً`,
   };
 }
 
 function checkEntityMismatch(cat, entity) {
-  const map = { excavation: ['NWC','SEC','STC','Mobily','Zain','RIPC'], water_leak: ['NWC'], lighting: ['Municipality','SEC'], traffic: ['Traffic_Dept','Municipality'], sidewalk: ['Municipality'], road_damage: ['Municipality','RIPC'], debris: ['Cleaning_Company','Municipality'], suggestion: ['Municipality_Planning','Municipality','Traffic_Dept'] };
-  const exp = map[cat];
-  if (exp && !exp.includes(entity)) return `الجهة غير متوقعة للفئة`;
+  // All categories are excavation-related, all entities are valid excavators
+  const validEntities = ['NWC', 'SEC', 'STC', 'Mobily', 'Zain', 'Municipality', 'Unknown'];
+  if (!validEntities.includes(entity)) return 'جهة غير معروفة';
   return null;
 }
 
-function checkSeverityLogic(cat, sev) {
-  if (cat === 'excavation' && sev < 3) return 'الحفريات تستحق شدة 3+';
-  if (cat === 'water_leak' && sev < 2) return 'تسرب المياه يستحق شدة 2+';
+function checkSeverityLogic(aiResult) {
+  if (aiResult.excavation_stage === 'abandoned' && aiResult.has_safety_barriers === false && aiResult.severity < 5) {
+    return 'حفرية مهجورة بدون حواجز — يُفترض شدة قصوى';
+  }
+  if (aiResult.category === 'post_paving_dig' && aiResult.severity < 3) {
+    return 'حفر بعد السفلتة يعكس غياب التنسيق — شدة 3+';
+  }
   return null;
 }
 
 export const CATEGORIES_LIST = [
-  { id: 'excavation', label: 'حفريات', icon: '🚧' },
-  { id: 'water_leak', label: 'تسرب مياه', icon: '💧' },
-  { id: 'lighting', label: 'إنارة معطلة', icon: '💡' },
-  { id: 'traffic', label: 'مشكلة مرورية', icon: '🚦' },
-  { id: 'sidewalk', label: 'أرصفة تالفة', icon: '🚶' },
-  { id: 'road_damage', label: 'تلف في الطريق', icon: '🛣️' },
-  { id: 'debris', label: 'مخلفات بناء', icon: '🏗️' },
-  { id: 'suggestion', label: 'اقتراح تحسين', icon: '💡' },
-  { id: 'other', label: 'أخرى', icon: '📋' },
+  { id: 'delayed_excavation', label: 'حفرية متأخرة', icon: '⏱️' },
+  { id: 'abandoned_excavation', label: 'حفرية مهجورة', icon: '🚫' },
+  { id: 'post_paving_dig', label: 'حفر بعد السفلتة', icon: '🔄' },
+  { id: 'no_safety_barriers', label: 'بدون حواجز سلامة', icon: '⚠️' },
+  { id: 'no_license_visible', label: 'بدون ترخيص ظاهر', icon: '📋' },
+  { id: 'active_excavation', label: 'حفرية نشطة', icon: '🚧' },
 ];

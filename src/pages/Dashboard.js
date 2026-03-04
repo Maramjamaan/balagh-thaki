@@ -42,7 +42,7 @@ function Dashboard({ role }) {
       <div style={s.page}>
         <div style={{ textAlign: 'center', padding: 100 }}>
           <div style={s.spinner} />
-          <p style={{ color: 'var(--text-dim)', marginTop: 16, fontSize: 14 }}>جاري تحميل لوحة التحكم...</p>
+          <p style={{ color: 'var(--text-dim)', marginTop: 16, fontSize: 14 }}>جاري تحميل لوحة المراقبة...</p>
         </div>
       </div>
     );
@@ -70,7 +70,7 @@ function Dashboard({ role }) {
   const tabs = [
     { id: 'overview', label: 'نظرة عامة', icon: '📊' },
     { id: 'ai', label: 'ذكاء اصطناعي', icon: '🤖' },
-    { id: 'reports', label: 'البلاغات', icon: '📋' },
+    { id: 'reports', label: 'الحفريات', icon: '🚧' },
     { id: 'leaderboard', label: 'ترتيب الجهات', icon: '🏆' },
   ];
 
@@ -82,12 +82,12 @@ function Dashboard({ role }) {
           <div style={{ width: 44, height: 44, borderRadius: 14, background: role === 'government' ? 'rgba(26,58,92,0.08)' : 'var(--primary-light)', border: `1px solid ${role === 'government' ? 'rgba(26,58,92,0.15)' : 'var(--primary-border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{role === 'government' ? '🏛️' : '📊'}</div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text)', margin: 0 }}>{role === 'government' ? 'لوحة التحكم الحكومية' : 'لوحة التحكم'}</h1>
+              <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text)', margin: 0 }}>{role === 'government' ? 'لوحة مراقبة الحفريات' : 'لوحة المراقبة'}</h1>
               {role === 'government' && (
                 <span style={{ padding: '3px 10px', borderRadius: 6, background: 'linear-gradient(135deg, #1a3a5c, #2d5a8e)', color: '#fff', fontSize: 10, fontWeight: 700 }}>جهة حكومية</span>
               )}
             </div>
-            <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: 0 }}>{role === 'government' ? 'إدارة البلاغات ومتابعة أداء الجهات' : 'مراقبة البلاغات وأداء الذكاء الاصطناعي'} — {stats?.total || 0} بلاغ</p>
+            <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: 0 }}>{role === 'government' ? 'مراقبة الحفريات المتأخرة وأداء شركات الخدمات' : 'رصد الحفريات وتحليل التأخيرات'} — {stats?.total || 0} بلاغ</p>
           </div>
         </div>
       </div>
@@ -108,11 +108,11 @@ function Dashboard({ role }) {
           {/* KPI Row */}
           <div style={s.kpiGrid} className="fade-up">
             {[
-              { label: 'إجمالي البلاغات', value: stats?.total || 0, icon: '📋', color: '#03471f', bg: 'rgba(3,71,31,0.06)' },
-              { label: 'بانتظار المعالجة', value: stats?.new || 0, icon: '⏳', color: '#EAB308', bg: 'rgba(234,179,8,0.08)' },
+              { label: 'إجمالي الحفريات', value: stats?.total || 0, icon: '📋', color: '#03471f', bg: 'rgba(3,71,31,0.06)' },
+              { label: 'حفريات بانتظار المعالجة', value: stats?.new || 0, icon: '⏳', color: '#EAB308', bg: 'rgba(234,179,8,0.08)' },
               { label: 'قيد المعالجة', value: stats?.inProgress || 0, icon: '🔄', color: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
               { label: 'تم الحل', value: stats?.resolved || 0, icon: '✅', color: '#22C55E', bg: 'rgba(34,197,94,0.08)' },
-              { label: 'بلاغات حرجة', value: stats?.critical || 0, icon: '🚨', color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
+              { label: 'حفريات حرجة', value: stats?.critical || 0, icon: '🚨', color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
               { label: 'متوسط الأولوية', value: stats?.avgScore || 0, icon: '⚡', color: '#F97316', bg: 'rgba(249,115,22,0.08)' },
             ].map((kpi, i) => (
               <div key={i} className={`glass fade-up stagger-${i + 1}`} style={{ ...s.kpiCard, borderTop: `3px solid ${kpi.color}` }}>
@@ -131,7 +131,7 @@ function Dashboard({ role }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
             {/* Status Pie Chart */}
             <div className="glass fade-up" style={{ padding: 24 }}>
-              <h3 style={s.sectionTitle}>حالة البلاغات</h3>
+              <h3 style={s.sectionTitle}>حالة الحفريات</h3>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -156,7 +156,7 @@ function Dashboard({ role }) {
 
             {/* Category Bar Chart */}
             <div className="glass fade-up" style={{ padding: 24 }}>
-              <h3 style={s.sectionTitle}>البلاغات حسب الفئة</h3>
+              <h3 style={s.sectionTitle}>الحفريات حسب النوع</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={categoryData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
@@ -177,7 +177,7 @@ function Dashboard({ role }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
             {/* Neighborhood Bar */}
             <div className="glass fade-up" style={{ padding: 24 }}>
-              <h3 style={s.sectionTitle}>أكثر الأحياء بلاغات</h3>
+              <h3 style={s.sectionTitle}>أكثر الأحياء حفريات متأخرة</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={neighborhoodData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
@@ -236,7 +236,7 @@ function Dashboard({ role }) {
               { icon: '🎯', value: `${stats?.confidence?.average || 0}%`, label: 'متوسط ثقة AI', color: '#03471f' },
               { icon: '⚠️', value: stats?.confidence?.lowConfidenceCount || 0, label: 'ثقة منخفضة', color: '#EAB308' },
               { icon: '📍', value: stats?.clusters?.totalClusters || 0, label: 'مجموعات مكتشفة', color: '#2563EB' },
-              { icon: '⬆️', value: escalation?.summary?.totalEscalated || 0, label: 'بلاغات مُصعّدة', color: '#F97316' },
+              { icon: '⬆️', value: escalation?.summary?.totalEscalated || 0, label: 'حفريات مُصعّدة', color: '#F97316' },
             ].map((kpi, i) => (
               <div key={i} className="glass" style={{ padding: '20px 16px', textAlign: 'center' }}>
                 <span style={{ fontSize: 24 }}>{kpi.icon}</span>
@@ -273,7 +273,7 @@ function Dashboard({ role }) {
                 ))}
               </div>
             ) : (
-              <EmptyState icon="📍" text="عند ورود بلاغات من نفس المنطقة سيتم تجميعها تلقائياً" />
+              <EmptyState icon="📍" text="عند ورود بلاغات حفريات من نفس المنطقة سيتم تجميعها تلقائياً" />
             )}
           </div>
 
@@ -311,7 +311,7 @@ function Dashboard({ role }) {
                 ))}
               </div>
             ) : (
-              <EmptyState icon="⚡" text="البلاغات القديمة أو المتكررة سيتم تصعيد أولويتها تلقائياً" />
+              <EmptyState icon="⚡" text="الحفريات القديمة أو المتكررة سيتم تصعيد أولويتها تلقائياً" />
             )}
           </div>
         </div>
@@ -322,11 +322,11 @@ function Dashboard({ role }) {
         <div className="fade-up">
           <div className="glass" style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>جميع البلاغات ({reports.length})</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>جميع الحفريات ({reports.length})</h3>
               <button onClick={loadData} style={s.refreshBtn}>🔄 تحديث</button>
             </div>
             {reports.length === 0 ? (
-              <EmptyState icon="📭" text="لا توجد بلاغات بعد — ارفع أول بلاغ!" />
+              <EmptyState icon="📭" text="لا توجد حفريات بعد — بلّغ عن أول حفرية!" />
             ) : (
               <div style={{ display: 'grid', gap: 8 }}>
                 {reports.slice(0, 25).map((r, i) => (
@@ -369,11 +369,11 @@ function Dashboard({ role }) {
       {activeTab === 'leaderboard' && (
         <div className="fade-up">
           <div className="glass" style={{ padding: 24 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: '0 0 4px' }}>🏆 ترتيب الجهات حسب الأداء</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 20px' }}>نسبة التأخير في معالجة البلاغات</p>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: '0 0 4px' }}>🏆 ترتيب شركات الخدمات حسب التأخير</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 20px' }}>نسبة التأخير في إنجاز الحفريات</p>
 
             {leaderboard.length === 0 ? (
-              <EmptyState icon="🏆" text="لا توجد بيانات كافية بعد" />
+              <EmptyState icon="🏆" text="لا توجد بيانات حفريات كافية بعد" />
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
                 {leaderboard.map((entity, i) => {
@@ -422,7 +422,7 @@ function Dashboard({ role }) {
           {/* Entity chart */}
           {entityData.length > 0 && (
             <div className="glass" style={{ padding: 24, marginTop: 16 }}>
-              <h3 style={s.sectionTitle}>البلاغات حسب الجهة</h3>
+              <h3 style={s.sectionTitle}>الحفريات حسب الجهة</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={entityData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />

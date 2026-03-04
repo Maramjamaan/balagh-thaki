@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import RoleSwitcher from './components/RoleSwitcher';
+import DemoGuide from './components/DemoGuide';
 import Home from './pages/Home';
 import SubmitReport from './pages/SubmitReport';
 import TrackReport from './pages/TrackReport';
@@ -13,7 +14,7 @@ import './App.css';
 
 function App() {
   const [ready, setReady] = useState(false);
-  const [role, setRole] = useState('citizen'); // 'citizen' or 'government'
+  const [role, setRole] = useState('citizen');
 
   useEffect(() => {
     async function init() {
@@ -42,20 +43,14 @@ function App() {
         <Navbar role={role} />
         <RoleSwitcher role={role} onSwitch={setRole} />
         {isDemoMode() && (
-          <div style={{
-            background: 'linear-gradient(90deg, #03471f, #1B7F5F)',
-            color: '#fff',
-            textAlign: 'center',
-            padding: '6px 16px',
-            fontSize: 12,
+          <div className="demo-banner-content" style={{
+            background: 'linear-gradient(90deg, #03471f, #065a2b)',
+            color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 12,
             fontFamily: "'Tajawal', sans-serif",
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
             <span style={{ background: 'rgba(255,195,0,0.3)', padding: '2px 10px', borderRadius: 6, fontSize: 11 }}>DEMO</span>
-            <span>وضع العرض التوضيحي — البيانات تجريبية لأحياء الرياض</span>
+            <span>وضع العرض التوضيحي — 45 حفرية تجريبية في أحياء الرياض</span>
           </div>
         )}
         <main style={{ flex: 1 }}>
@@ -68,6 +63,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
+        <DemoGuide />
       </div>
     </Router>
   );

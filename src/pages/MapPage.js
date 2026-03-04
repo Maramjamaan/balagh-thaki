@@ -78,7 +78,7 @@ function MapPage() {
       <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 44, height: 44, border: '3px solid rgba(3,71,31,0.1)', borderTopColor: '#03471f', borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ color: '#6B6560', marginTop: 16, fontSize: 14 }}>جاري تحميل الخريطة...</p>
+          <p style={{ color: '#6B6560', marginTop: 16, fontSize: 14 }}>جاري تحميل خريطة الحفريات...</p>
         </div>
       </div>
     );
@@ -88,11 +88,11 @@ function MapPage() {
     <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '10px 20px', background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.04)', zIndex: 1000 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>🗺️ خريطة البلاغات</h2>
-          <span style={{ padding: '3px 10px', borderRadius: 8, fontSize: 12, background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 600 }}>{filtered.length} بلاغ</span>
+          <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>🗺️ خريطة حفريات الرياض</h2>
+          <span style={{ padding: '3px 10px', borderRadius: 8, fontSize: 12, background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 600 }}>{filtered.length} حفرية</span>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {[{ id: 'all', l: 'الكل' }, { id: 'critical', l: '🚨 حرج' }, { id: 'clusters', l: '📍 مجموعات' }, { id: 'new', l: '⏳ جديد' }].map(f => (
+          {[{ id: 'all', l: 'الكل' }, { id: 'critical', l: '🚨 حرجة' }, { id: 'clusters', l: '📍 مجموعات' }, { id: 'new', l: '⏳ جديدة' }].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
               padding: '6px 12px', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif",
               background: filter === f.id ? '#03471f' : '#fff', color: filter === f.id ? '#fff' : '#6B6560',
@@ -137,7 +137,7 @@ function MapPage() {
                         </div>
                       ))}
                     </div>
-                    {r.cluster_id && <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 6, background: 'rgba(37,99,235,0.06)', textAlign: 'center' }}><span style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>📍 جزء من مجموعة بلاغات</span></div>}
+                    {r.cluster_id && <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 6, background: 'rgba(37,99,235,0.06)', textAlign: 'center' }}><span style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>📍 جزء من مجموعة حفريات متكررة</span></div>}
                   </div>
                 </Popup>
               </Marker>
@@ -168,7 +168,7 @@ function MapPage() {
 
         <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', borderRadius: 14, padding: '10px 20px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', gap: 14 }}>
-            {[{ v: reports.length, l: 'إجمالي', c: '#03471f' }, { v: reports.filter(r => r.priority_score >= 70).length, l: 'حرج', c: '#DC2626' }, { v: clusters.length, l: 'مجموعات', c: '#2563EB' }].map((s, i) => (
+            {[{ v: reports.length, l: 'إجمالي', c: '#03471f' }, { v: reports.filter(r => r.priority_score >= 70).length, l: 'حرجة', c: '#DC2626' }, { v: clusters.length, l: 'مجموعات', c: '#2563EB' }].map((s, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <div style={{ width: 1, background: 'rgba(0,0,0,0.06)' }} />}
                 <div style={{ textAlign: 'center' }}>

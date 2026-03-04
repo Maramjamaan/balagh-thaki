@@ -8,7 +8,7 @@
 
 :root {
   --primary: #03471f;
-  --primary-mid: #065a2b;
+  --primary-mid: #1B7F5F;
   --primary-light: rgba(3, 71, 31, 0.06);
   --primary-border: rgba(3, 71, 31, 0.12);
   --gold: #C5A656;
@@ -28,13 +28,21 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
-  --shadow-glow: 0 0 40px rgba(3,71,31,0.08);
+  --shadow-glow: 0 0 40px rgba(3,71,31,0.06);
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 24px;
-  --nav-bg: linear-gradient(135deg, #03471f 0%, #065a2b 100%);
 }
 
+body {
+  background: var(--bg);
+  direction: rtl;
+  color: var(--text);
+  font-family: 'Tajawal', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
 
 a { text-decoration: none; color: inherit; }
 
@@ -45,66 +53,57 @@ a { text-decoration: none; color: inherit; }
 
 /* === Animations === */
 @keyframes spin { to { transform: rotate(360deg); } }
-
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(20px); }
   to { opacity: 1; transform: translateX(0); }
 }
-
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
 }
-
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.98); }
 }
-
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
-
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(3,71,31,0.1); }
-  50% { box-shadow: 0 0 40px rgba(3,71,31,0.2); }
+  0%, 100% { box-shadow: 0 0 20px rgba(3,71,31,0.08); }
+  50% { box-shadow: 0 0 40px rgba(3,71,31,0.16); }
 }
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(40px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes successPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
 }
-
+@keyframes checkDraw {
+  0% { stroke-dashoffset: 50; }
+  100% { stroke-dashoffset: 0; }
+}
 @keyframes countUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes ripple {
-  0% { transform: scale(0); opacity: 0.5; }
-  100% { transform: scale(4); opacity: 0; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes priorityRing {
+  0% { stroke-dashoffset: 339.292; }
 }
 
 .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -116,12 +115,12 @@ a { text-decoration: none; color: inherit; }
 /* Staggered animations */
 .stagger-1 { animation-delay: 0.06s; opacity: 0; }
 .stagger-2 { animation-delay: 0.12s; opacity: 0; }
-.stagger-3 { animation-delay: 0.18s; opacity: 0; }
-.stagger-4 { animation-delay: 0.24s; opacity: 0; }
-.stagger-5 { animation-delay: 0.30s; opacity: 0; }
-.stagger-6 { animation-delay: 0.36s; opacity: 0; }
+.stagger-3 { animation-delay: 0.14s; opacity: 0; }
+.stagger-4 { animation-delay: 0.20s; opacity: 0; }
+.stagger-5 { animation-delay: 0.26s; opacity: 0; }
+.stagger-6 { animation-delay: 0.32s; opacity: 0; }
 
-/* === Glass Card === */
+/* === Glass Cards === */
 .glass {
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -131,32 +130,53 @@ a { text-decoration: none; color: inherit; }
 }
 .glass:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  border-color: rgba(3,71,31,0.12);
 }
 
-/* Interactive card */
 .glass-interactive {
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: default;
 }
 .glass-interactive:hover {
   box-shadow: var(--shadow-lg), var(--shadow-glow);
   transform: translateY(-4px);
-  border-color: rgba(3,71,31,0.15);
+  border-color: rgba(3,71,31,0.12);
 }
 
-/* Glow card for result/success */
 .glass-glow {
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   animation: glow 3s ease-in-out infinite;
+}
+
+.success-icon { animation: successPop 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+.priority-ring { animation: priorityRing 1.5s ease forwards; }
+
+/* === Button base === */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-family: 'Tajawal', sans-serif;
+  transition: all 0.2s;
+}
+.btn-primary:hover {
+  background: var(--primary-mid);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(3,71,31,0.2);
 }
 
 /* === Leaflet overrides === */
@@ -187,107 +207,59 @@ a { text-decoration: none; color: inherit; }
   font-size: 11px !important;
 }
 
-/* === Tooltip === */
-.tooltip-container {
-  position: relative;
-}
-.tooltip-container::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 110%;
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  background: var(--text);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.2s ease;
-}
-.tooltip-container:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
+/* ==========================================
+   RESPONSIVE — Full Mobile Support
+   ========================================== */
 
-/* === Responsive === */
+/* Navbar mobile */
 @media (max-width: 768px) {
   nav > div > div:nth-child(2) { display: none !important; }
   nav > div > button { display: block !important; }
 }
 
-@media (max-width: 640px) {
+/* Tablet */
+@media (max-width: 900px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .steps-grid { grid-template-columns: 1fr !important; }
   .features-grid { grid-template-columns: 1fr !important; }
   .categories-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .charts-grid { grid-template-columns: 1fr !important; }
+  .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
   .info-grid { grid-template-columns: 1fr !important; }
   .result-actions { flex-direction: column !important; }
+  .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .track-grid { grid-template-columns: 1fr !important; }
+  .track-info-grid { grid-template-columns: 1fr 1fr !important; }
 }
 
+/* Mobile */
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .steps-grid { grid-template-columns: 1fr !important; }
+  .features-grid { grid-template-columns: 1fr !important; }
+  .categories-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .charts-grid { grid-template-columns: 1fr !important; }
+  .footer-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+  .hero-btns { flex-direction: column !important; align-items: stretch !important; }
+  .hero-btns a { justify-content: center !important; }
+  .result-actions { flex-direction: column !important; }
+  .bottom-features { grid-template-columns: 1fr !important; }
+  .track-grid { grid-template-columns: 1fr !important; }
+  .track-info-grid { grid-template-columns: 1fr !important; }
+  .about-team-grid { grid-template-columns: 1fr !important; }
+  .ai-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .demo-banner-content { flex-direction: column !important; gap: 4px !important; }
+}
+
+/* Small mobile */
 @media (max-width: 480px) {
-  .hero-title { font-size: 32px !important; }
+  .hero-title { font-size: 28px !important; }
   .hero-subtitle { font-size: 16px !important; }
-}
-/* === Enhanced Result Page Styles === */
-/* Add these to App.css */
-
-/* Success animation */
-@keyframes successPop {
-  0% { transform: scale(0.5); opacity: 0; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes checkDraw {
-  0% { stroke-dashoffset: 50; }
-  100% { stroke-dashoffset: 0; }
-}
-
-@keyframes confetti {
-  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
-}
-
-@keyframes priorityRing {
-  0% { stroke-dashoffset: 339.292; }
-}
-
-.success-icon {
-  animation: successPop 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.success-check {
-  stroke-dasharray: 50;
-  stroke-dashoffset: 0;
-  animation: checkDraw 0.8s ease 0.3s both;
-}
-
-.priority-ring {
-  animation: priorityRing 1.5s ease forwards;
-}
-
-/* Result card hover */
-.result-card {
-  transition: all 0.3s ease;
-}
-.result-card:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-  transform: translateY(-2px);
-}
-
-/* Progress bar animation */
-.confidence-bar {
-  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Factor row hover */
-.factor-row {
-  transition: all 0.2s ease;
-}
-.factor-row:hover {
-  background: rgba(3,71,31,0.04);
-  transform: translateX(-4px);
+  .hero-desc { font-size: 13px !important; }
+  .section-title { font-size: 22px !important; }
+  .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; }
 }
