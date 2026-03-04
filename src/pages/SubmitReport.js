@@ -4,6 +4,16 @@ import { submitReport } from '../services/reportService';
 import { ENTITY_NAMES_AR, severityToArabic, severityColor, getProviderName } from '../services/aiService';
 import { getCurrentLocation } from '../services/locationService';
 import { CATEGORIES_LIST } from '../services/confidenceService';
+import { checkCanSubmit, recordSubmission } from '../services/spamProtection';
+import {
+  isVoiceSupported,
+  initSpeechRecognition,
+  startRecording as startVoiceRecording,
+  stopRecording as stopVoiceRecording,
+  cleanup as cleanupVoice,
+  analyzeVoiceText,
+  MAX_RECORDING_SECONDS,
+} from '../services/voiceService';
 
 function SubmitReport() {
   const navigate = useNavigate();
@@ -18,116 +28,91 @@ function SubmitReport() {
   const [location, setLocation] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Voice Recording State
+  // Voice State
   const [isRecording, setIsRecording] = useState(false);
   const [voiceText, setVoiceText] = useState('');
-  const [voiceSupported, setVoiceSupported] = useState(false);
-  const recognitionRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const [voiceSupported] = useState(isVoiceSupported());
+  const [voiceError, setVoiceError] = useState('');
   const [audioBlob, setAudioBlob] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [voiceAnalysis, setVoiceAnalysis] = useState(null);
+  const [analyzingVoice, setAnalyzingVoice] = useState(false);
   const timerRef = useRef(null);
+  const audioBlobPromiseRef = useRef(null);
 
   useEffect(() => {
     getCurrentLocation()
       .then(loc => setLocation(loc))
       .catch(() => setLocation({ latitude: 24.7136, longitude: 46.6753, neighborhood: 'الرياض' }));
 
-    // Check Web Speech API support
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setVoiceSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ar-SA';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) finalTranscript += transcript + ' ';
-          else interimTranscript = transcript;
-        }
-        if (finalTranscript) setVoiceText(prev => prev + finalTranscript);
-      };
-
-      recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error);
-        if (event.error !== 'no-speech') stopRecording();
-      };
-
-      recognition.onend = () => {
-        // Auto-restart if still recording
-        if (isRecording && recognitionRef.current) {
-          try { recognitionRef.current.start(); } catch(e) {}
-        }
-      };
-
-      recognitionRef.current = recognition;
+    if (voiceSupported) {
+      initSpeechRecognition({
+        onTranscript: (text) => setVoiceText(prev => prev + text),
+        onError: (msg) => setVoiceError(msg),
+      });
     }
 
-    return () => {
-      if (recognitionRef.current) try { recognitionRef.current.stop(); } catch(e) {}
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+    return () => cleanupVoice(timerRef.current);
+  }, [voiceSupported]);
 
-  const startRecording = async () => {
-    setIsRecording(true);
+  // === Voice Functions ===
+  const handleStartRecording = async () => {
+    setVoiceError('');
     setVoiceText('');
     setRecordingTime(0);
     setAudioBlob(null);
+    setVoiceAnalysis(null);
 
-    // Start speech recognition
-    if (recognitionRef.current) {
-      try { recognitionRef.current.start(); } catch(e) {}
+    const result = await startVoiceRecording({
+      onTranscript: (text) => setVoiceText(prev => prev + text),
+      onError: (msg) => { setVoiceError(msg); setIsRecording(false); },
+      onTimeUpdate: (sec) => setRecordingTime(sec),
+      onMaxReached: () => {
+        setIsRecording(false);
+        setVoiceError('⏱️ وصلت الحد الأقصى (دقيقتين) — تم إيقاف التسجيل تلقائياً');
+      },
+    });
+
+    if (result) {
+      setIsRecording(true);
+      timerRef.current = result.timer;
+      audioBlobPromiseRef.current = result.audioBlobPromise;
     }
-
-    // Start audio recording
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      mediaRecorderRef.current = mediaRecorder;
-    } catch (err) {
-      console.warn('Microphone access denied:', err);
-    }
-
-    // Start timer
-    timerRef.current = setInterval(() => {
-      setRecordingTime(prev => prev + 1);
-    }, 1000);
   };
 
-  const stopRecording = () => {
+  const handleStopRecording = async () => {
     setIsRecording(false);
-    if (recognitionRef.current) try { recognitionRef.current.stop(); } catch(e) {}
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try { mediaRecorderRef.current.stop(); } catch(e) {}
-    }
+    stopVoiceRecording();
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+
+    // انتظر ملف الصوت
+    if (audioBlobPromiseRef.current) {
+      const blob = await audioBlobPromiseRef.current;
+      setAudioBlob(blob);
+    }
   };
 
-  const applyVoiceToNotes = () => {
-    if (voiceText.trim()) {
-      setNotes(prev => prev ? prev + '\n' + voiceText.trim() : voiceText.trim());
-      setVoiceText('');
+  const handleAnalyzeVoice = async () => {
+    if (!voiceText.trim()) {
+      setVoiceError('📝 ما فيه نص — سجّل مرة ثانية وتكلم بصوت واضح');
+      return;
     }
+    setAnalyzingVoice(true);
+    setVoiceError('');
+    try {
+      const analysis = await analyzeVoiceText(voiceText);
+      setVoiceAnalysis(analysis);
+      if (analysis.needs_clarification) {
+        setVoiceError(`⚠️ ${analysis.clarification_message}`);
+      }
+      // أضف الوصف النظيف للملاحظات
+      if (analysis.understood && analysis.clean_description) {
+        setNotes(prev => prev ? prev + '\n' + analysis.clean_description : analysis.clean_description);
+      }
+    } catch (err) {
+      setVoiceError('حدث خطأ في تحليل الصوت');
+    }
+    setAnalyzingVoice(false);
   };
 
   const formatTime = (seconds) => {
@@ -136,6 +121,7 @@ function SubmitReport() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // === Image & Submit ===
   const handleImage = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -146,19 +132,54 @@ function SubmitReport() {
 
   const handleSubmit = async () => {
     if (!image) { setError('ارفع صورة المشكلة أولاً'); return; }
+
+    // فحص التكرار قبل الإرسال
+    const spamCheck = checkCanSubmit(
+      location?.latitude,
+      location?.longitude,
+      voiceAnalysis?.category || null
+    );
+
+    if (!spamCheck.allowed) {
+      setError(spamCheck.message);
+      return;
+    }
+
     setLoading(true); setError(''); setStep(1);
     try {
+      if (isRecording) handleStopRecording();
+
       setTimeout(() => setStep(2), 1200);
       setTimeout(() => setStep(3), 2400);
-      const res = await submitReport(image);
-      setStep(4);
+      setTimeout(() => setStep(4), 3200);
+
+      const res = await submitReport(image, {
+        notes: notes || null,
+        audioBlob: audioBlob || null,
+        voiceText: voiceText || null,
+      });
+
+      // سجّل البلاغ عشان نمنع التكرار
+      recordSubmission({
+        latitude: res.location?.latitude,
+        longitude: res.location?.longitude,
+        category: res.ai?.category,
+        reportId: res.report?.id,
+      });
+
+      setStep(5);
       setTimeout(() => setResult(res), 400);
     } catch (err) { setError(err.message); setStep(0); }
     setLoading(false);
   };
 
-  const resetForm = () => { setImage(null); setPreview(null); setResult(null); setError(''); setStep(0); setNotes(''); setShowDetails(false); };
-
+  const resetForm = () => {
+    setImage(null); setPreview(null); setResult(null);
+    setError(''); setStep(0); setNotes(''); setShowDetails(false);
+    setVoiceText(''); setAudioBlob(null); setVoiceError('');
+    setRecordingTime(0); setIsRecording(false); setVoiceAnalysis(null);
+    cleanupVoice(timerRef.current);
+  };
   // === Result Page ===
   if (result) {
     const p = result.priority;
@@ -352,70 +373,110 @@ function SubmitReport() {
         {/* Voice Recording Section */}
         {voiceSupported && (
           <div style={{ marginBottom: 28 }}>
-            <label style={st.label}>🎙️ تسجيل صوتي لوصف المشكلة</label>
+            <label style={st.label}>🎙️ وصف صوتي للمشكلة (اختياري)</label>
             <div style={{
               background: isRecording ? 'rgba(220,38,38,0.04)' : 'rgba(3,71,31,0.02)',
               border: `2px solid ${isRecording ? 'rgba(220,38,38,0.2)' : 'rgba(0,0,0,0.06)'}`,
               borderRadius: 16, padding: 20, transition: 'all 0.3s',
             }}>
+              {/* Record Button */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <button
-                    onClick={isRecording ? stopRecording : startRecording}
+                    onClick={isRecording ? handleStopRecording : handleStartRecording}
                     style={{
                       width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
                       background: isRecording ? '#DC2626' : '#03471f',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: isRecording ? '0 0 0 4px rgba(220,38,38,0.2)' : '0 2px 8px rgba(3,71,31,0.2)',
-                      transition: 'all 0.3s',
                       animation: isRecording ? 'pulse 1.5s ease-in-out infinite' : 'none',
                     }}
                   >
                     {isRecording ? (
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                     ) : (
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path d="M19 10v2a7 7 0 01-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
                     )}
                   </button>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#1A1613', margin: 0 }}>
-                      {isRecording ? 'جاري التسجيل...' : 'اضغط للتسجيل'}
+                      {isRecording ? 'جاري التسجيل...' : audioBlob ? '✅ تم التسجيل' : 'اضغط للتسجيل'}
                     </p>
                     <p style={{ fontSize: 12, color: isRecording ? '#DC2626' : '#6B6560', margin: '2px 0 0' }}>
-                      {isRecording ? `⏱️ ${formatTime(recordingTime)}` : 'تحدث بالعربي ويتحول لنص تلقائياً'}
+                      {isRecording ? `⏱️ ${formatTime(recordingTime)} / ${formatTime(MAX_RECORDING_SECONDS)}` : 'وصف المشكلة بالعربي — AI يحلل كلامك'}
                     </p>
                   </div>
                 </div>
                 {isRecording && (
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {[0,1,2,3,4].map(i => (
-                      <div key={i} style={{
-                        width: 4, borderRadius: 2, background: '#DC2626',
-                        animation: `pulse ${0.5 + i * 0.15}s ease-in-out infinite alternate`,
-                        height: 12 + Math.random() * 16,
-                      }} />
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <div key={i} style={{ width: 4, borderRadius: 2, background: '#DC2626', animation: `pulse ${0.5 + i * 0.15}s ease-in-out infinite alternate`, height: 12 + Math.random() * 16 }} />
                     ))}
                   </div>
                 )}
               </div>
 
+              {/* Error */}
+              {voiceError && (
+                <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10 }}>
+                  <p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>{voiceError}</p>
+                </div>
+              )}
+
               {/* Transcribed Text */}
-              {voiceText && (
+              {voiceText && !isRecording && (
                 <div style={{ marginTop: 16 }}>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid rgba(0,0,0,0.06)' }}>
                     <p style={{ fontSize: 11, color: '#6B6560', margin: '0 0 6px', fontWeight: 600 }}>📝 النص المحوّل:</p>
                     <p style={{ fontSize: 14, color: '#1A1613', margin: 0, lineHeight: 1.7, direction: 'rtl' }}>{voiceText}</p>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button onClick={applyVoiceToNotes} style={{
-                      flex: 1, padding: '10px 16px', background: '#03471f', color: '#fff', border: 'none', borderRadius: 10,
-                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif",
-                    }}>✅ أضف للملاحظات</button>
-                    <button onClick={() => setVoiceText('')} style={{
-                      padding: '10px 16px', background: 'rgba(220,38,38,0.06)', color: '#DC2626', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10,
-                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif",
-                    }}>🗑️ حذف</button>
-                  </div>
+
+                  {/* Analyze Button */}
+                  <button onClick={handleAnalyzeVoice} disabled={analyzingVoice} style={{
+                    width: '100%', marginTop: 10, padding: '12px 16px',
+                    background: analyzingVoice ? 'rgba(3,71,31,0.08)' : 'linear-gradient(135deg, #03471f, #065a2b)',
+                    color: analyzingVoice ? '#6B6560' : '#fff', border: 'none', borderRadius: 12,
+                    fontSize: 14, fontWeight: 700, cursor: analyzingVoice ? 'wait' : 'pointer',
+                    fontFamily: "'Tajawal', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                    {analyzingVoice ? (
+                      <><span style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.1)', borderTopColor: '#03471f', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} /> جاري تحليل الكلام...</>
+                    ) : (
+                      <>🤖 حلل بالذكاء الاصطناعي</>
+                    )}
+                  </button>
+
+                  {/* Voice Analysis Result */}
+                  {voiceAnalysis && voiceAnalysis.understood && (
+                    <div style={{ marginTop: 12, padding: 14, background: 'rgba(3,71,31,0.04)', border: '1px solid rgba(3,71,31,0.12)', borderRadius: 12 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#03471f', margin: '0 0 8px' }}>🤖 تحليل الذكاء الاصطناعي للوصف الصوتي:</p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                        <span style={{ padding: '4px 12px', borderRadius: 8, background: '#03471f', color: '#fff', fontSize: 12 }}>📂 {voiceAnalysis.category_ar}</span>
+                        <span style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(3,71,31,0.1)', color: '#03471f', fontSize: 12 }}>⚡ شدة: {voiceAnalysis.severity_hint}/5</span>
+                      </div>
+                      {voiceAnalysis.keywords && (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {voiceAnalysis.keywords.map((kw, i) => (
+                            <span key={i} style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.04)', fontSize: 11, color: '#6B6560' }}>#{kw}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delete */}
+                  <button onClick={() => { setVoiceText(''); setVoiceError(''); setVoiceAnalysis(null); }} style={{
+                    width: '100%', marginTop: 8, padding: '8px 16px',
+                    background: 'transparent', color: '#DC2626', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10,
+                    fontSize: 12, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif",
+                  }}>🗑️ حذف التسجيل وإعادة المحاولة</button>
+                </div>
+              )}
+
+              {/* No text warning */}
+              {!voiceText && audioBlob && !isRecording && !voiceError && (
+                <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 10 }}>
+                  <p style={{ fontSize: 13, color: '#92400E', margin: 0 }}>⚠️ تم التسجيل لكن ما قدرنا نحوّله لنص — ممكن الصوت كان غير واضح. التسجيل مرفق مع البلاغ.</p>
                 </div>
               )}
 
@@ -423,13 +484,18 @@ function SubmitReport() {
               {audioBlob && !isRecording && (
                 <div style={{ marginTop: 12 }}>
                   <audio controls src={URL.createObjectURL(audioBlob)} style={{ width: '100%', height: 36, borderRadius: 8 }} />
-                  <p style={{ fontSize: 11, color: '#6B6560', margin: '4px 0 0', textAlign: 'center' }}>🔊 التسجيل الصوتي مرفق مع البلاغ</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
+        {!voiceSupported && (
+          <div style={{ marginBottom: 28, padding: '14px 18px', background: 'rgba(0,0,0,0.02)', borderRadius: 14, border: '1px solid rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: 13, color: '#6B6560', margin: 0 }}>🎙️ التسجيل الصوتي غير متاح — استخدم Chrome أو Edge</p>
+          </div>
+        )}
+      
         {error && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.12)', borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
             <span>⚠️</span><p style={{ color: '#DC2626', fontSize: 13, margin: 0 }}>{error}</p>
@@ -449,7 +515,13 @@ function SubmitReport() {
         <div style={{ textAlign: 'center', marginTop: 24 }} className="fade-in">
           <div style={{ width: 44, height: 44, border: '3px solid rgba(3,71,31,0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
           <div style={{ marginTop: 16 }}>
-            {[{ s: 1, icon: '🤖', t: 'تحليل الصورة بالذكاء الاصطناعي...' }, { s: 2, icon: '📍', t: 'كشف البلاغات المكررة...' }, { s: 3, icon: '⚡', t: 'حساب الأولوية الذكية...' }, { s: 4, icon: '✨', t: 'شبه خلصنا...' }].map(item => (
+            {[
+              { s: 1, icon: '🤖', t: 'تحليل الصورة بالذكاء الاصطناعي...' },
+              { s: 2, icon: '🎙️', t: 'تحليل الوصف الصوتي...' },
+              { s: 3, icon: '📍', t: 'كشف البلاغات المكررة...' },
+              { s: 4, icon: '⚡', t: 'حساب الأولوية الذكية...' },
+              { s: 5, icon: '✨', t: 'شبه خلصنا...' },
+            ].map(item => (
               <p key={item.s} style={{ fontSize: 13, color: step >= item.s ? 'var(--primary)' : 'var(--text-faint)', fontWeight: step === item.s ? 700 : 400, margin: '6px 0', transition: 'all 0.3s' }}>
                 {step > item.s ? '✅' : step === item.s ? item.icon : '○'} {item.t}
               </p>

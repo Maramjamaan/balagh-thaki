@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { analyzeImage } from './aiService';
+import { analyzeVoiceText, mergeVoiceWithImageAnalysis } from './voiceService';
 import { getCurrentLocation } from './locationService';
 import { calculatePriority } from './priorityService';
 import { validateClassification } from './confidenceService';
@@ -18,9 +19,23 @@ async function getReportCount(neighborhood, category) {
   const { count } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('neighborhood', neighborhood).eq('category', category);
   return count || 0;
 }
+export async function submitReport(imageFile, { notes, audioBlob, voiceText } = {}) {
+  // 1. تحليل الصورة بالذكاء الاصطناعي
+  let aiResult = await analyzeImage(imageFile);
 
-export async function submitReport(imageFile) {
-  const aiResult = await analyzeImage(imageFile);
+  // 2. تحليل النص الصوتي (لو فيه)
+  let voiceAnalysis = null;
+  if (voiceText && voiceText.trim().length > 3) {
+    console.log('[Awla] تحليل النص الصوتي...');
+    voiceAnalysis = await analyzeVoiceText(voiceText);
+
+    // 3. دمج التحليلين
+    if (voiceAnalysis && voiceAnalysis.understood) {
+      aiResult = mergeVoiceWithImageAnalysis(aiResult, voiceAnalysis);
+      console.log('[Awla] تم دمج تحليل الصوت مع الصورة');
+    }
+  }
+
   const validation = validateClassification(aiResult);
   let location;
   try { location = await getCurrentLocation(); } catch { location = { latitude: 24.7136, longitude: 46.6753, neighborhood: 'العليا' }; }
@@ -29,11 +44,30 @@ export async function submitReport(imageFile) {
   const basePriority = calculatePriority({ severity: aiResult.severity, latitude: location.latitude, longitude: location.longitude, reportCount: reportCount + 1 + clusterResult.nearbyCount, daysOpen: 0, nearbySchoolsHospitals: 1 });
   const dynamicPriority = calculateDynamicPriority({ basePriority: basePriority.score, createdAt: new Date().toISOString(), status: 'new', clusterSize: clusterResult.nearbyCount, blocksTraffic: aiResult.blocks_traffic, hasSafetyBarriers: aiResult.has_safety_barriers, isExcavation: aiResult.category === 'excavation' });
 
+  // 4. رفع الصورة
   let imageUrl = null;
   try { imageUrl = await uploadImage(imageFile); } catch (err) { console.warn('Image upload failed', err); }
 
+  // 5. رفع التسجيل الصوتي
+  let audioUrl = null;
+  if (audioBlob) {
+    try {
+      const audioName = `${Date.now()}-voice.webm`;
+      const { error: audioErr } = await supabase.storage.from('report-images').upload(audioName, audioBlob);
+      if (!audioErr) {
+        const { data: audioData } = supabase.storage.from('report-images').getPublicUrl(audioName);
+        audioUrl = audioData.publicUrl;
+      }
+    } catch (err) { console.warn('Audio upload failed', err); }
+  }
+
+  // 6. حفظ البلاغ
   const { data, error } = await supabase.from('reports').insert({
-    image_url: imageUrl, category: aiResult.category, subcategory: aiResult.subcategory,
+    image_url: imageUrl,
+    audio_url: audioUrl,
+    voice_notes: notes || null,
+    voice_analysis: voiceAnalysis || null,
+    category: aiResult.category, subcategory: aiResult.subcategory,
     category_ar: aiResult.category_ar, subcategory_ar: aiResult.subcategory_ar,
     latitude: location.latitude, longitude: location.longitude, neighborhood: location.neighborhood,
     description: aiResult.description_ar, ai_classification: aiResult,
@@ -49,7 +83,7 @@ export async function submitReport(imageFile) {
   if (clusterResult.isDuplicate) await linkToCluster(data.id, clusterResult);
 
   return {
-    report: data, ai: aiResult, location,
+    report: data, ai: aiResult, location, voiceAnalysis,
     priority: { ...basePriority, score: dynamicPriority.dynamicScore, baseScore: basePriority.score, dynamic: dynamicPriority },
     validation, cluster: clusterResult, escalation: dynamicPriority,
   };
