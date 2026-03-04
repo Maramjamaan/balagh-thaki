@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
 
 * {
   margin: 0;
@@ -8,24 +8,29 @@
 
 :root {
   --primary: #03471f;
-  --primary-light: rgba(27, 127, 95, 0.08);
-  --primary-border: rgba(27, 127, 95, 0.15);
-  --secondary: #ffc300;
-  --secondary-light: rgba(157, 124, 95, 0.1);
-  --accent: #D4A574;
+  --primary-mid: #1B7F5F;
+  --primary-light: rgba(3, 71, 31, 0.06);
+  --primary-border: rgba(3, 71, 31, 0.12);
+  --gold: #C5A656;
+  --gold-light: rgba(197, 166, 86, 0.12);
   --bg: #FAFAF8;
-  --muted: #F5F1ED;
+  --bg-warm: #F5F1ED;
   --card: #FFFFFF;
-  --card-border: rgba(157, 124, 95, 0.15);
+  --card-border: rgba(0, 0, 0, 0.06);
   --text: #1A1613;
   --text-dim: #6B6560;
   --text-faint: #A0A0A0;
-  --red: #D94545;
+  --red: #DC2626;
   --orange: #F97316;
-  --yellow: #D4A017;
-  --green: #03471f;
-  --blue: #4A8FDB;
-  --shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --yellow: #EAB308;
+  --green: #22C55E;
+  --blue: #2563EB;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
 }
 
 body {
@@ -35,40 +40,121 @@ body {
   font-family: 'Tajawal', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  line-height: 1.6;
 }
 
-a { text-decoration: none; }
+a { text-decoration: none; color: inherit; }
 
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
 
+/* === Animations === */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
 
-.fade-up { animation: fadeUp 0.5s ease forwards; }
+.fade-up { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .fade-in { animation: fadeIn 0.4s ease forwards; }
+.slide-in { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.scale-in { animation: scaleIn 0.3s ease forwards; }
 
+/* Staggered animations */
+.stagger-1 { animation-delay: 0.05s; opacity: 0; }
+.stagger-2 { animation-delay: 0.1s; opacity: 0; }
+.stagger-3 { animation-delay: 0.15s; opacity: 0; }
+.stagger-4 { animation-delay: 0.2s; opacity: 0; }
+.stagger-5 { animation-delay: 0.25s; opacity: 0; }
+.stagger-6 { animation-delay: 0.3s; opacity: 0; }
+
+/* === Glass Card === */
 .glass {
   background: var(--card);
   border: 1px solid var(--card-border);
-  border-radius: 20px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.glass:hover {
+  box-shadow: var(--shadow-md);
 }
 
+/* === Leaflet overrides === */
 .leaflet-container {
   background: #EEF2EF !important;
-  border-radius: 16px !important;
+  border-radius: var(--radius-md) !important;
 }
 .leaflet-popup-content-wrapper {
-  border-radius: 12px !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
 }
 .leaflet-popup-tip { display: none !important; }
+.leaflet-control-zoom {
+  border: none !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-md) !important;
+}
+.leaflet-control-zoom a {
+  border: none !important;
+  color: var(--text) !important;
+}
+
+/* === Button base === */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-family: 'Tajawal', sans-serif;
+  transition: all 0.2s;
+}
+.btn-primary:hover {
+  background: var(--primary-mid);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(3,71,31,0.2);
+}
+
+/* === Recharts fixes === */
+.recharts-cartesian-axis-tick-value {
+  font-family: 'Tajawal', sans-serif !important;
+  font-size: 11px !important;
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  nav > div > div:nth-child(2) { display: none !important; }
+  nav > div > button { display: block !important; }
+}
