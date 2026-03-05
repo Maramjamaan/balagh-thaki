@@ -57,16 +57,16 @@ function Footer() {
 }
 
 const s = {
-  footer: { background: 'linear-gradient(135deg, #03471f 0%, #022d14 100%)', color: '#fff', padding: '48px 24px 28px' },
+  footer: { background: 'linear-gradient(135deg, #03471f 0%, #022d14 100%)', color: '#fff', padding: '28px 24px 16px' },
   inner: { maxWidth: 1100, margin: '0 auto' },
-  topGrid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: 40 },
+ topGrid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: 24 },
   brand: { display: 'flex', alignItems: 'center', gap: 10 },
   logoMark: { width: 40, height: 40, borderRadius: 12, background: 'rgba(197,166,86,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#C5A656', border: '1px solid rgba(197,166,86,0.3)' },
   colTitle: { fontSize: 14, fontWeight: 700, marginBottom: 14, color: '#C5A656', fontFamily: "'Tajawal', sans-serif" },
   link: { fontSize: 13, color: 'rgba(255,255,255,0.65)', textDecoration: 'none', fontFamily: "'Tajawal', sans-serif" },
   tag: { padding: '4px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.06)' },
   avatar: { width: 34, height: 34, borderRadius: 10, background: 'rgba(197,166,86,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#C5A656', border: '1px solid rgba(197,166,86,0.2)' },
-  divider: { height: 1, background: 'rgba(255,255,255,0.08)', margin: '32px 0 20px' },
+ divider: { height: 1, background: 'rgba(255,255,255,0.08)', margin: '16px 0 12px' },
 };
 
 export default Footer;

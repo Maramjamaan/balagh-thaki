@@ -15,8 +15,8 @@ function Navbar({ role }) {
 
   const govLinks = [
     { to: '/', label: 'الرئيسية', icon: '🏠' },
-    { to: '/dashboard', label: 'لوحة التحكم', icon: '📊' },
-    { to: '/map', label: 'خريطة البلاغات', icon: '🗺️' },
+    { to: '/dashboard', label: 'لوحة المراقبة', icon: '📊' },
+    { to: '/map', label: 'خريطة الحفريات', icon: '🗺️' },
     { to: '/track', label: 'بحث بلاغ', icon: '🔍' },
   ];
 

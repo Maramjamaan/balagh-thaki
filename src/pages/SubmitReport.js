@@ -4,6 +4,7 @@ import { submitReport } from '../services/reportService';
 import { ENTITY_NAMES_AR, severityToArabic, severityColor, getProviderName, stageToArabic, LICENSE_STATUS_AR, SAFETY_RISK_AR, SAFETY_RISK_COLOR } from '../services/aiService';
 import { getCurrentLocation } from '../services/locationService';
 import { CATEGORIES_LIST } from '../services/confidenceService';
+import { checkCanSubmit, recordSubmission } from '../services/spamProtection';
 
 function SubmitReport() {
   const navigate = useNavigate();
@@ -146,12 +147,34 @@ function SubmitReport() {
 
   const handleSubmit = async () => {
     if (!image) { setError('ارفع صورة الحفرية أولاً'); return; }
+
+    // فحص السبام
+    const spamCheck = checkCanSubmit(
+      location?.latitude,
+      location?.longitude,
+      null
+    );
+    if (!spamCheck.allowed) {
+      setError(spamCheck.message);
+      return;
+    }
+
     setLoading(true); setError(''); setStep(1);
     try {
       setTimeout(() => setStep(2), 1200);
       setTimeout(() => setStep(3), 2400);
-      const res = await submitReport(image);
+      const allNotes = [notes, voiceText].filter(Boolean).join('\n').trim();
+      const res = await submitReport(image, allNotes || null);
       setStep(4);
+
+      // تسجيل البلاغ لمنع التكرار
+      recordSubmission({
+        latitude: res.location.latitude,
+        longitude: res.location.longitude,
+        category: res.ai.category,
+        reportId: res.report.id,
+      });
+
       setTimeout(() => setResult(res), 400);
     } catch (err) { setError(err.message); setStep(0); }
     setLoading(false);

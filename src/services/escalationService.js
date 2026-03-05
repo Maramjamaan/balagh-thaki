@@ -46,7 +46,7 @@ export async function getEscalationReport() {
         const { count } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('cluster_id', r.cluster_id);
         cs = (count || 1) - 1;
       }
-      const d = calculateDynamicPriority({ basePriority: r.priority_score, createdAt: r.created_at, status: r.status, clusterSize: cs, blocksTraffic: r.blocks_traffic, hasSafetyBarriers: r.has_safety_barriers, isExcavation: r.category === 'excavation', licenseExpired: false });
+      const d = calculateDynamicPriority({ basePriority: r.priority_score, createdAt: r.created_at, status: r.status, clusterSize: cs, blocksTraffic: r.blocks_traffic, hasSafetyBarriers: r.has_safety_barriers, isExcavation: true, licenseExpired: false });
       if (d.escalated) escalated.push({ report: r, ...d });
     }
     return { escalated, summary: { totalActive: reports.length, totalEscalated: escalated.length, avgBoost: escalated.length > 0 ? Math.round(escalated.reduce((s, r) => s + r.totalBoost, 0) / escalated.length) : 0 } };

@@ -6,6 +6,7 @@ import { validateClassification } from './confidenceService';
 import { checkForDuplicate, linkToCluster } from './clusterService';
 import { calculateDynamicPriority } from './escalationService';
 import { matchNearbyLicense } from './licenseService';
+import { analyzeVoiceText, mergeVoiceWithImageAnalysis } from './voiceService';
 
 async function uploadImage(imageFile) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
@@ -20,12 +21,20 @@ async function getReportCount(neighborhood, category) {
   return count || 0;
 }
 
-export async function submitReport(imageFile) {
-  const aiResult = await analyzeImage(imageFile);
+export async function submitReport(imageFile, voiceText = null) {
+  let aiResult = await analyzeImage(imageFile);
   const validation = validateClassification(aiResult);
   let location;
   try { location = await getCurrentLocation(); } catch { location = { latitude: 24.7136, longitude: 46.6753, neighborhood: 'العليا' }; }
-
+  // تحليل ودمج النص الصوتي
+  if (voiceText && voiceText.trim().length > 3) {
+    try {
+      const voiceAnalysis = await analyzeVoiceText(voiceText);
+      if (voiceAnalysis && voiceAnalysis.understood) {
+        aiResult = mergeVoiceWithImageAnalysis(aiResult, voiceAnalysis);
+      }
+    } catch (err) { console.warn('Voice analysis skipped:', err.message); }
+  }
   // مطابقة مع ترخيص حفر
   const licenseMatch = matchNearbyLicense(location.latitude, location.longitude, aiResult.responsible_entity);
 
