@@ -5,6 +5,7 @@ import { calculatePriority } from './priorityService';
 import { validateClassification } from './confidenceService';
 import { checkForDuplicate, linkToCluster } from './clusterService';
 import { calculateDynamicPriority } from './escalationService';
+import { matchNearbyLicense } from './licenseService';
 
 async function uploadImage(imageFile) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
@@ -24,10 +25,27 @@ export async function submitReport(imageFile) {
   const validation = validateClassification(aiResult);
   let location;
   try { location = await getCurrentLocation(); } catch { location = { latitude: 24.7136, longitude: 46.6753, neighborhood: 'العليا' }; }
+
+  // مطابقة مع ترخيص حفر
+  const licenseMatch = matchNearbyLicense(location.latitude, location.longitude, aiResult.responsible_entity);
+
   const clusterResult = await checkForDuplicate(location.latitude, location.longitude, aiResult.category);
   const reportCount = await getReportCount(location.neighborhood, aiResult.category);
-  const basePriority = calculatePriority({ severity: aiResult.severity, latitude: location.latitude, longitude: location.longitude, reportCount: reportCount + 1 + clusterResult.nearbyCount, daysOpen: 0, nearbySchoolsHospitals: 1 });
-  const dynamicPriority = calculateDynamicPriority({ basePriority: basePriority.score, createdAt: new Date().toISOString(), status: 'new', clusterSize: clusterResult.nearbyCount, blocksTraffic: aiResult.blocks_traffic, hasSafetyBarriers: aiResult.has_safety_barriers, isExcavation: true });
+
+  const licenseExpired = licenseMatch.found && licenseMatch.timing.is_expired;
+  const delayDays = licenseMatch.found ? licenseMatch.timing.delay_days : 0;
+
+  const basePriority = calculatePriority({
+    severity: aiResult.severity, latitude: location.latitude, longitude: location.longitude,
+    reportCount: reportCount + 1 + clusterResult.nearbyCount, daysOpen: 0, nearbySchoolsHospitals: 1,
+    licenseExpired, delayDays,
+  });
+
+  const dynamicPriority = calculateDynamicPriority({
+    basePriority: basePriority.score, createdAt: new Date().toISOString(), status: 'new',
+    clusterSize: clusterResult.nearbyCount, blocksTraffic: aiResult.blocks_traffic,
+    hasSafetyBarriers: aiResult.has_safety_barriers, isExcavation: true, licenseExpired,
+  });
 
   let imageUrl = null;
   try { imageUrl = await uploadImage(imageFile); } catch (err) { console.warn('Image upload failed', err); }
@@ -50,7 +68,7 @@ export async function submitReport(imageFile) {
   if (clusterResult.isDuplicate) await linkToCluster(data.id, clusterResult);
 
   return {
-    report: data, ai: aiResult, location,
+    report: data, ai: aiResult, location, licenseMatch,
     priority: { ...basePriority, score: dynamicPriority.dynamicScore, baseScore: basePriority.score, dynamic: dynamicPriority },
     validation, cluster: clusterResult, escalation: dynamicPriority,
   };
@@ -71,10 +89,8 @@ export async function getDashboardStats() {
   const resolved = reports.filter(r => r.status === 'resolved').length;
   const critical = reports.filter(r => r.priority_score >= 80).length;
   const avgScore = Math.round(reports.reduce((s, r) => s + r.priority_score, 0) / total);
-
   const clustered = reports.filter(r => r.cluster_id);
   const uniqueClusters = [...new Set(clustered.map(r => r.cluster_id))];
-
   const byCategory = {}, byNeighborhood = {}, byEntity = {};
   reports.forEach(r => {
     const cat = r.category_ar || r.category || 'غير مصنف';
@@ -84,10 +100,8 @@ export async function getDashboardStats() {
     const entity = r.responsible_entity || 'غير محدد';
     byEntity[entity] = (byEntity[entity] || 0) + 1;
   });
-
   const confVals = reports.filter(r => r.ai_confidence).map(r => r.ai_confidence);
   const avgConf = confVals.length > 0 ? Math.round((confVals.reduce((s, c) => s + c, 0) / confVals.length) * 100) : 0;
-
   return {
     total, new: newCount, pending: newCount, inProgress, resolved, critical, avgScore,
     byCategory, byNeighborhood, byEntity,

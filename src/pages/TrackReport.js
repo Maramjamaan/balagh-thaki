@@ -1,10 +1,41 @@
 import React, { useState } from 'react';
+import { supabase } from '../supabase';
+import { ENTITY_NAMES_AR } from '../services/aiService';
 
 const MOCK_REPORTS = {
-  'AW-2026-12345': { id: 'AW-2026-12345', status: 'قيد المعالجة', category: 'حفرية متأخرة عن الترخيص', date: '2026-02-15', location: 'طريق الملك فهد، العليا', priority: 87, responsible: 'المياه الوطنية (NWC)', description: 'حفرية متأخرة عن مدة الترخيص بـ 15 يوم — مردومة جزئياً بدون حواجز سلامة. عمرها التقديري 45 يوم. تعيق حركة المرور على طريق رئيسي.', timeline: [{ date: '2026-02-15', status: 'تم رصد الحفرية', completed: true }, { date: '2026-02-16', status: 'تحليل AI — متأخرة عن الترخيص', completed: true }, { date: '2026-02-18', status: 'تم التوجيه لـ NWC', completed: true }, { date: '2026-02-20', status: 'قيد المعالجة', completed: true }, { date: 'متوقع 2026-02-25', status: 'الإنجاز المتوقع', completed: false }] },
-  'AW-2026-12346': { id: 'AW-2026-12346', status: 'حرج', category: 'حفرية مهجورة بدون حواجز', date: '2026-02-16', location: 'حي النرجس، الرياض', priority: 92, responsible: 'السعودية للكهرباء (SEC)', description: 'حفرية مهجورة تماماً — لا عمال ولا معدات ولا حواجز. مكشوفة وتشكل خطر مباشر على المشاة والسيارات. عمرها التقديري أكثر من 90 يوم.', timeline: [{ date: '2026-02-16', status: 'تم رصد الحفرية', completed: true }, { date: '2026-02-17', status: 'تحليل AI — مهجورة + خطر حرج', completed: true }, { date: '2026-02-19', status: 'تصعيد عاجل لـ SEC', completed: true }, { date: '2026-02-21', status: 'بانتظار استجابة الجهة', completed: false }, { date: 'متوقع 2026-02-26', status: 'الإنجاز المتوقع', completed: false }] },
-  'AW-2026-12347': { id: 'AW-2026-12347', status: 'جديد', category: 'حفر بعد السفلتة', date: '2026-02-17', location: 'طريق العليا، الرياض', priority: 78, responsible: 'STC', description: 'حفر جديد في شارع مُسفلت حديثاً لتمديد ألياف ضوئية — يدل على غياب التنسيق بين الجهات. الشارع أُعيد سفلتته قبل أقل من شهر.', timeline: [{ date: '2026-02-17', status: 'تم رصد الحفرية', completed: true }, { date: '2026-02-18', status: 'تحليل AI — حفر بعد سفلتة', completed: true }, { date: '2026-02-19', status: 'تم التوجيه لـ STC', completed: false }, { date: 'متوقع 2026-02-22', status: 'قيد المعالجة', completed: false }, { date: 'متوقع 2026-02-27', status: 'الإنجاز المتوقع', completed: false }] },
+  'AW-2026-12345': { id: 'AW-2026-12345', status: 'قيد المعالجة', category: 'حفرية متأخرة عن الترخيص', date: '2026-02-15', location: 'طريق الملك فهد، العليا', priority: 87, responsible: 'المياه الوطنية (NWC)', description: 'حفرية متأخرة عن مدة الترخيص بـ 15 يوم — مردومة جزئياً بدون حواجز سلامة. عمرها التقديري 45 يوم.', timeline: [{ date: '2026-02-15', status: 'تم رصد الحفرية', completed: true }, { date: '2026-02-16', status: 'تحليل AI — متأخرة عن الترخيص', completed: true }, { date: '2026-02-18', status: 'تم التوجيه لـ NWC', completed: true }, { date: '2026-02-20', status: 'قيد المعالجة', completed: true }, { date: 'متوقع 2026-02-25', status: 'الإنجاز المتوقع', completed: false }] },
+  'AW-2026-12346': { id: 'AW-2026-12346', status: 'حرج', category: 'حفرية مهجورة بدون حواجز', date: '2026-02-16', location: 'حي النرجس، الرياض', priority: 92, responsible: 'السعودية للكهرباء (SEC)', description: 'حفرية مهجورة تماماً — لا عمال ولا معدات ولا حواجز. تشكل خطر مباشر. عمرها التقديري أكثر من 90 يوم.', timeline: [{ date: '2026-02-16', status: 'تم رصد الحفرية', completed: true }, { date: '2026-02-17', status: 'تحليل AI — مهجورة + خطر حرج', completed: true }, { date: '2026-02-19', status: 'تصعيد عاجل لـ SEC', completed: true }, { date: '2026-02-21', status: 'بانتظار استجابة الجهة', completed: false }, { date: 'متوقع 2026-02-26', status: 'الإنجاز المتوقع', completed: false }] },
+  'AW-2026-12347': { id: 'AW-2026-12347', status: 'جديد', category: 'حفر بعد السفلتة', date: '2026-02-17', location: 'طريق العليا، الرياض', priority: 78, responsible: 'STC', description: 'حفر جديد في شارع مُسفلت حديثاً لتمديد ألياف ضوئية — يدل على غياب التنسيق بين الجهات.', timeline: [{ date: '2026-02-17', status: 'تم رصد الحفرية', completed: true }, { date: '2026-02-18', status: 'تحليل AI — حفر بعد سفلتة', completed: true }, { date: '2026-02-19', status: 'تم التوجيه لـ STC', completed: false }, { date: 'متوقع 2026-02-22', status: 'قيد المعالجة', completed: false }, { date: 'متوقع 2026-02-27', status: 'الإنجاز المتوقع', completed: false }] },
 };
+
+const STATUS_MAP = { new: 'جديد', in_progress: 'قيد المعالجة', resolved: 'تم الإنجاز' };
+
+function buildTimeline(r) {
+  const created = new Date(r.created_at || Date.now());
+  const day = 86400000;
+  const status = r.status || 'new';
+  return [
+    { date: created.toLocaleDateString('sv'), status: 'تم رصد الحفرية', completed: true },
+    { date: new Date(created.getTime() + day).toLocaleDateString('sv'), status: `تحليل AI — ${r.category_ar || 'تصنيف'}`, completed: true },
+    { date: new Date(created.getTime() + 2 * day).toLocaleDateString('sv'), status: `تم التوجيه لـ ${ENTITY_NAMES_AR[r.responsible_entity] || r.responsible_entity || 'الجهة'}`, completed: status !== 'new' },
+    { date: new Date(created.getTime() + 4 * day).toLocaleDateString('sv'), status: 'قيد المعالجة', completed: status === 'in_progress' || status === 'resolved' },
+    { date: 'متوقع ' + new Date(created.getTime() + 10 * day).toLocaleDateString('sv'), status: 'الإنجاز المتوقع', completed: status === 'resolved' },
+  ];
+}
+
+function normalizeDbReport(r) {
+  return {
+    id: r.id,
+    status: STATUS_MAP[r.status] || r.status || 'جديد',
+    category: r.category_ar || r.category || 'غير مصنف',
+    date: r.created_at ? new Date(r.created_at).toLocaleDateString('sv') : 'غير محدد',
+    location: (r.neighborhood || 'غير محدد') + '، الرياض',
+    priority: r.priority_score || 0,
+    responsible: ENTITY_NAMES_AR[r.responsible_entity] || r.responsible_entity || 'غير محدد',
+    description: r.description || r.category_ar || 'لا يوجد وصف',
+    timeline: buildTimeline(r),
+  };
+}
 
 function TrackReport() {
   const [reportId, setReportId] = useState('');
@@ -12,14 +43,50 @@ function TrackReport() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     const id = reportId.trim();
     if (!id) return;
     setSearching(true); setError(''); setReportData(null);
-    setTimeout(() => { MOCK_REPORTS[id] ? setReportData(MOCK_REPORTS[id]) : setError('لم يتم العثور على حفرية بهذا الرقم'); setSearching(false); }, 800);
+
+    // 1. أول شيك البيانات الثابتة
+    if (MOCK_REPORTS[id]) {
+      setTimeout(() => { setReportData(MOCK_REPORTS[id]); setSearching(false); }, 600);
+      return;
+    }
+
+    // 2. بحث في قاعدة البيانات
+    try {
+      // بحث بالـ ID بالضبط
+      let { data } = await supabase.from('reports').select('*').eq('id', id).single();
+
+      // لو ما لقى، جرب بحث جزئي
+      if (!data) {
+        const { data: allReports } = await supabase.from('reports').select('*');
+        if (allReports) {
+          data = allReports.find(r =>
+            r.id === id ||
+            r.id?.startsWith(id) ||
+            r.id?.slice(0, 8) === id
+          );
+        }
+      }
+
+      if (data) {
+        setReportData(normalizeDbReport(data));
+      } else {
+        setError('لم يتم العثور على حفرية بهذا الرقم');
+      }
+    } catch (err) {
+      setError('لم يتم العثور على حفرية بهذا الرقم');
+    }
+    setSearching(false);
   };
 
-  const handleExample = (id) => { setReportId(id); setSearching(true); setError(''); setReportData(null); setTimeout(() => { setReportData(MOCK_REPORTS[id]); setSearching(false); }, 800); };
+  const handleExample = (id) => {
+    setReportId(id);
+    setSearching(true); setError(''); setReportData(null);
+    setTimeout(() => { if (MOCK_REPORTS[id]) setReportData(MOCK_REPORTS[id]); setSearching(false); }, 600);
+  };
 
   return (
     <div style={{ minHeight: 'calc(100vh - 140px)', padding: '48px 20px' }}>
@@ -31,9 +98,10 @@ function TrackReport() {
 
         <div className="glass" style={{ padding: 24, marginBottom: 32 }}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <input style={{ flex: 1, height: 52, padding: '0 20px', borderRadius: 12, border: '1px solid rgba(0,0,0,0.08)', fontSize: 15, outline: 'none', fontFamily: "'Tajawal', sans-serif", direction: 'ltr', textAlign: 'right' }} placeholder="مثال: AW-2026-12345" value={reportId} onChange={e => setReportId(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+            <input style={{ flex: 1, height: 52, padding: '0 20px', borderRadius: 12, border: '1px solid rgba(0,0,0,0.08)', fontSize: 15, outline: 'none', fontFamily: "'Tajawal', sans-serif", direction: 'ltr', textAlign: 'right' }} placeholder="رقم البلاغ أو أول 8 حروف منه" value={reportId} onChange={e => setReportId(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
             <button onClick={handleSearch} disabled={searching} style={{ height: 52, padding: '0 28px', background: '#03471f', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif", display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>🔍 بحث</button>
           </div>
+          <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 8 }}>انسخ رقم البلاغ من صفحة النتيجة بعد التبليغ عن حفرية</p>
           {error && <p style={{ color: '#DC2626', fontSize: 14, marginTop: 12 }}>{error}</p>}
         </div>
 
@@ -43,10 +111,10 @@ function TrackReport() {
           <div className="fade-up">
             <div style={{ background: 'linear-gradient(135deg, #03471f, #1B7F5F)', borderRadius: 20, padding: 28, marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
-                <div><p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: '0 0 4px' }}>رقم البلاغ</p><h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: 0 }}>{reportData.id}</h2></div>
+                <div><p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: '0 0 4px' }}>رقم البلاغ</p><h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, direction: 'ltr', textAlign: 'right' }}>{reportData.id?.slice(0, 16)}</h2></div>
                 <div style={{ background: 'rgba(255,255,255,0.15)', padding: '8px 20px', borderRadius: 12, color: '#fff', fontSize: 14, fontWeight: 600, backdropFilter: 'blur(8px)' }}>{reportData.status}</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              <div className="track-info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
                 {[['التاريخ', reportData.date], ['النوع', reportData.category], ['الأولوية', `${reportData.priority}/100`]].map(([l, v], i) => (
                   <div key={i}><p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', margin: '0 0 2px' }}>{l}</p><p style={{ fontSize: 14, color: '#fff', margin: 0, fontWeight: 600 }}>{v}</p></div>
                 ))}
@@ -54,7 +122,7 @@ function TrackReport() {
             </div>
 
             <div className="glass" style={{ padding: 24, marginBottom: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 16px' }}>تفاصيل البلاغ</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 16px' }}>تفاصيل الحفرية</h3>
               {[['📍 الموقع', reportData.location], ['🏢 الجهة المسؤولة', reportData.responsible]].map(([l, v], i) => (
                 <div key={i} style={{ padding: '14px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 12, marginBottom: 8 }}><p style={{ fontSize: 12, color: '#6B6560', margin: '0 0 2px' }}>{l}</p><p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{v}</p></div>
               ))}
@@ -97,11 +165,12 @@ function TrackReport() {
         {!reportData && !searching && !error && (
           <div style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 20, padding: 28, border: '1px solid rgba(0,0,0,0.04)' }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>للتجربة، جرّب أحد بلاغات الحفريات:</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div className="track-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {['AW-2026-12345', 'AW-2026-12346', 'AW-2026-12347'].map(id => (
                 <button key={id} onClick={() => handleExample(id)} style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: 16, fontSize: 14, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif", direction: 'ltr', transition: 'all 0.2s' }}>{id}</button>
               ))}
             </div>
+            <p style={{ fontSize: 13, color: '#6B6560', marginTop: 16, textAlign: 'center' }}>أو بلّغ عن حفرية جديدة وانسخ رقمها من صفحة النتيجة</p>
           </div>
         )}
       </div>

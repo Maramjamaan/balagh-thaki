@@ -17,9 +17,12 @@ function SubmitReport() {
   const [notes, setNotes] = useState('');
   const [location, setLocation] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [citizenAge, setCitizenAge] = useState(null);
+  const [citizenLicense, setCitizenLicense] = useState(null);
 
   // Voice Recording State
   const [isRecording, setIsRecording] = useState(false);
+  const isRecordingRef = useRef(false);
   const [voiceText, setVoiceText] = useState('');
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef(null);
@@ -34,7 +37,6 @@ function SubmitReport() {
       .then(loc => setLocation(loc))
       .catch(() => setLocation({ latitude: 24.7136, longitude: 46.6753, neighborhood: 'الرياض' }));
 
-    // Check Web Speech API support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       setVoiceSupported(true);
@@ -45,11 +47,10 @@ function SubmitReport() {
 
       recognition.onresult = (event) => {
         let finalTranscript = '';
-        let interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) finalTranscript += transcript + ' ';
-          else interimTranscript = transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' ';
+          }
         }
         if (finalTranscript) setVoiceText(prev => prev + finalTranscript);
       };
@@ -60,8 +61,7 @@ function SubmitReport() {
       };
 
       recognition.onend = () => {
-        // Auto-restart if still recording
-        if (isRecording && recognitionRef.current) {
+        if (isRecordingRef.current && recognitionRef.current) {
           try { recognitionRef.current.start(); } catch(e) {}
         }
       };
@@ -73,20 +73,20 @@ function SubmitReport() {
       if (recognitionRef.current) try { recognitionRef.current.stop(); } catch(e) {}
       if (timerRef.current) clearInterval(timerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startRecording = async () => {
     setIsRecording(true);
+    isRecordingRef.current = true;
     setVoiceText('');
     setRecordingTime(0);
     setAudioBlob(null);
 
-    // Start speech recognition
     if (recognitionRef.current) {
       try { recognitionRef.current.start(); } catch(e) {}
     }
 
-    // Start audio recording
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -108,7 +108,6 @@ function SubmitReport() {
       console.warn('Microphone access denied:', err);
     }
 
-    // Start timer
     timerRef.current = setInterval(() => {
       setRecordingTime(prev => prev + 1);
     }, 1000);
@@ -116,6 +115,7 @@ function SubmitReport() {
 
   const stopRecording = () => {
     setIsRecording(false);
+    isRecordingRef.current = false;
     if (recognitionRef.current) try { recognitionRef.current.stop(); } catch(e) {}
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try { mediaRecorderRef.current.stop(); } catch(e) {}
@@ -157,8 +157,7 @@ function SubmitReport() {
     setLoading(false);
   };
 
-  const resetForm = () => { setImage(null); setPreview(null); setResult(null); setError(''); setStep(0); setNotes(''); setShowDetails(false); };
-
+  const resetForm = () => { setImage(null); setPreview(null); setResult(null); setError(''); setStep(0); setNotes(''); setShowDetails(false); setCitizenAge(null); setCitizenLicense(null); };
   // === Result Page ===
   if (result) {
     const p = result.priority;
@@ -168,6 +167,7 @@ function SubmitReport() {
     const validation = result.validation;
     const cluster = result.cluster;
     const escalation = result.escalation;
+    const licenseMatch = result.licenseMatch;
 
     return (
       <div style={st.page}>
@@ -212,6 +212,50 @@ function SubmitReport() {
                 <p style={{ fontSize: 14, fontWeight: 700, color: SAFETY_RISK_COLOR[ai.safety_risk_level] || '#F97316', margin: 0 }}>{SAFETY_RISK_AR[ai.safety_risk_level] || '—'}</p>
                 <p style={{ fontSize: 11, color: 'var(--text-dim)', margin: 0 }}>مستوى الخطر</p>
               </div>
+            </div>
+          )}
+          {/* License Match */}
+          {licenseMatch && (
+            <div className="glass" style={{ padding: 20, marginBottom: 14, borderRight: `4px solid ${licenseMatch.found ? licenseMatch.statusColor : '#EAB308'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <span style={{ fontSize: 22 }}>{licenseMatch.found ? '📋' : '⚠️'}</span>
+                <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: licenseMatch.found ? licenseMatch.statusColor : '#92400E' }}>
+                  {licenseMatch.found ? 'مطابقة مع ترخيص حفر' : 'لم يُعثر على ترخيص مطابق'}
+                </h3>
+              </div>
+              {licenseMatch.found ? (
+                <div>
+                  <div style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 14, padding: 16, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>رقم الترخيص</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--primary)', direction: 'ltr' }}>{licenseMatch.license.id}</span>
+                    </div>
+                    {[
+                      ['نوع العمل', licenseMatch.license.type],
+                      ['المقاول', licenseMatch.license.contractor],
+                      ['المدة المرخّصة', `${licenseMatch.license.duration_days} يوم`],
+                      ['تاريخ الإصدار', licenseMatch.license.issued_date],
+                      ['تاريخ الانتهاء', licenseMatch.license.expiry_date],
+                    ].map(([label, value], i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(0,0,0,0.03)', fontSize: 12 }}>
+                        <span style={{ color: 'var(--text-dim)' }}>{label}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: `${licenseMatch.statusColor}08`, border: `2px solid ${licenseMatch.statusColor}20`, borderRadius: 14 }}>
+                    <span style={{ fontSize: 20 }}>{licenseMatch.statusIcon}</span>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: licenseMatch.statusColor, margin: 0 }}>{licenseMatch.status}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-dim)', margin: '2px 0 0' }}>مسافة المطابقة: {licenseMatch.distance_meters} متر</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: '12px 16px', background: 'rgba(234,179,8,0.06)', borderRadius: 12, border: '1px solid rgba(234,179,8,0.12)' }}>
+                  <p style={{ fontSize: 13, color: '#92400E', margin: 0 }}>{licenseMatch.message_detail}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -349,7 +393,7 @@ function SubmitReport() {
       <div className="fade-up glass" style={{ padding: 32, marginBottom: 32, borderRadius: 24 }}>
         <div style={{ marginBottom: 28 }}>
           <label style={st.label}>صورة الحفرية</label>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleImage} style={{ display: 'none' }} />
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
           {preview ? (
             <div style={{ position: 'relative' }}>
               <img src={preview} alt="preview" style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 16 }} />
@@ -378,7 +422,50 @@ function SubmitReport() {
             </div>
           </div>
         </div>
+          {/* Citizen Questions */}
+        <div style={{ marginBottom: 28 }}>
+          <label style={st.label}>من متى هذي الحفرية تقريباً؟ <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(اختياري)</span></label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { value: 'week', label: 'أقل من أسبوع', icon: '🟢' },
+              { value: 'month', label: 'أسبوع لشهر', icon: '🟡' },
+              { value: '3months', label: 'شهر لـ 3 شهور', icon: '🟠' },
+              { value: 'more', label: 'أكثر من 3 شهور', icon: '🔴' },
+            ].map(opt => (
+              <button key={opt.value} type="button" onClick={() => setCitizenAge(citizenAge === opt.value ? null : opt.value)}
+                style={{
+                  flex: '1 1 calc(50% - 4px)', padding: '12px 14px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+                  fontFamily: "'Tajawal', sans-serif", cursor: 'pointer', transition: 'all 0.2s',
+                  background: citizenAge === opt.value ? '#03471f' : '#fff',
+                  color: citizenAge === opt.value ? '#fff' : 'var(--text)',
+                  border: `2px solid ${citizenAge === opt.value ? '#03471f' : 'rgba(0,0,0,0.06)'}`,
+                }}>
+                {opt.icon} {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
+        <div style={{ marginBottom: 28 }}>
+          <label style={st.label}>هل تشوف لوحة ترخيص عند الحفرية؟ <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(اختياري)</span></label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { value: 'yes', label: 'نعم، أشوف لوحة', icon: '✅' },
+              { value: 'no', label: 'لا، ما فيه لوحة', icon: '❌' },
+            ].map(opt => (
+              <button key={opt.value} type="button" onClick={() => setCitizenLicense(citizenLicense === opt.value ? null : opt.value)}
+                style={{
+                  flex: 1, padding: '14px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600,
+                  fontFamily: "'Tajawal', sans-serif", cursor: 'pointer', transition: 'all 0.2s',
+                  background: citizenLicense === opt.value ? (opt.value === 'yes' ? '#22C55E' : '#DC2626') : '#fff',
+                  color: citizenLicense === opt.value ? '#fff' : 'var(--text)',
+                  border: `2px solid ${citizenLicense === opt.value ? (opt.value === 'yes' ? '#22C55E' : '#DC2626') : 'rgba(0,0,0,0.06)'}`,
+                }}>
+                {opt.icon} {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div style={{ marginBottom: 28 }}>
           <label style={st.label}>ملاحظات إضافية (اختياري)</label>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="صف الحفرية: هل فيها حواجز؟ من متى موجودة؟ هل تعيق المرور؟" style={{ width: '100%', height: 100, background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: 16, resize: 'none', fontSize: 14, fontFamily: "'Tajawal', sans-serif", outline: 'none', direction: 'rtl' }} />
@@ -434,7 +521,6 @@ function SubmitReport() {
                 )}
               </div>
 
-              {/* Transcribed Text */}
               {voiceText && (
                 <div style={{ marginTop: 16 }}>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid rgba(0,0,0,0.06)' }}>
@@ -454,7 +540,6 @@ function SubmitReport() {
                 </div>
               )}
 
-              {/* Audio Playback */}
               {audioBlob && !isRecording && (
                 <div style={{ marginTop: 12 }}>
                   <audio controls src={URL.createObjectURL(audioBlob)} style={{ width: '100%', height: 36, borderRadius: 8 }} />
