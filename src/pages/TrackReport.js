@@ -42,6 +42,12 @@ function TrackReport() {
   const [reportData, setReportData] = useState(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
+  const [myReports, setMyReports] = useState([]);
+
+React.useEffect(() => {
+  const saved = JSON.parse(localStorage.getItem('awla_my_reports') || '[]');
+  setMyReports(saved);
+}, []);
 
   const handleSearch = async () => {
     const id = reportId.trim();
@@ -163,14 +169,42 @@ function TrackReport() {
         )}
 
         {!reportData && !searching && !error && (
-          <div style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 20, padding: 28, border: '1px solid rgba(0,0,0,0.04)' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>للتجربة، جرّب أحد بلاغات الحفريات:</h3>
-            <div className="track-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              {['AW-2026-12345', 'AW-2026-12346', 'AW-2026-12347'].map(id => (
-                <button key={id} onClick={() => handleExample(id)} style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: 16, fontSize: 14, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif", direction: 'ltr', transition: 'all 0.2s' }}>{id}</button>
-              ))}
+          <div>
+            {/* بلاغاتي */}
+            {myReports.length > 0 && (
+              <div className="glass" style={{ padding: 24, marginBottom: 20 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 16px' }}>📋 بلاغاتي</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {myReports.map((r, i) => (
+                    <div key={i} onClick={() => handleExample(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: i % 2 === 0 ? 'rgba(0,0,0,0.015)' : 'transparent', borderRadius: 12, cursor: 'pointer', border: '1px solid rgba(0,0,0,0.04)', transition: 'all 0.2s' }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13, fontWeight: 900,
+                        background: r.priority_score >= 80 ? 'rgba(220,38,38,0.08)' : r.priority_score >= 60 ? 'rgba(249,115,22,0.08)' : 'rgba(234,179,8,0.08)',
+                        color: r.priority_score >= 80 ? '#DC2626' : r.priority_score >= 60 ? '#F97316' : '#EAB308',
+                      }}>{r.priority_score}</div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1A1613', margin: 0 }}>{r.category_ar || 'حفرية'}</p>
+                        <p style={{ fontSize: 11, color: '#A0A0A0', margin: '2px 0 0' }}>{r.neighborhood || '—'} • {new Date(r.created_at).toLocaleDateString('ar-SA')}</p>
+                      </div>
+                      <span style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'rgba(234,179,8,0.08)', color: '#EAB308' }}>
+                        {r.status === 'resolved' ? '✅ تم' : r.status === 'in_progress' ? '🔄 قيد' : '⏳ جديد'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* للتجربة */}
+            <div style={{ background: 'rgba(0,0,0,0.02)', borderRadius: 20, padding: 28, border: '1px solid rgba(0,0,0,0.04)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>للتجربة، جرّب أحد بلاغات الحفريات:</h3>
+              <div className="track-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                {['AW-2026-12345', 'AW-2026-12346', 'AW-2026-12347'].map(id => (
+                  <button key={id} onClick={() => handleExample(id)} style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: 16, fontSize: 14, cursor: 'pointer', fontFamily: "'Tajawal', sans-serif", direction: 'ltr', transition: 'all 0.2s' }}>{id}</button>
+                ))}
+              </div>
+              <p style={{ fontSize: 13, color: '#6B6560', marginTop: 16, textAlign: 'center' }}>أو بلّغ عن حفرية جديدة وبلاغك يظهر هنا تلقائياً</p>
             </div>
-            <p style={{ fontSize: 13, color: '#6B6560', marginTop: 16, textAlign: 'center' }}>أو بلّغ عن حفرية جديدة وانسخ رقمها من صفحة النتيجة</p>
           </div>
         )}
       </div>
