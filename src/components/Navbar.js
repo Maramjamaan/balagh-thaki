@@ -26,9 +26,7 @@ function Navbar({ role }) {
     <nav style={s.nav}>
       <div style={s.container}>
         <Link to="/" style={s.logoLink}>
-          <div style={s.logoMark}>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#C5A656' }}>أ</span>
-          </div>
+          <img src="public\أولى.png" alt="أولى" style={{ width: 38, height: 38, borderRadius: 10 }} />
           <div>
             <span style={s.logoText}>أولى</span>
             <span style={s.logoSub}>{isGov ? 'Awla | مراقبة الحفريات' : 'Awla | رصد الحفريات المتأخرة'}</span>

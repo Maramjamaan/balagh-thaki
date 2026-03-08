@@ -24,7 +24,9 @@ function Home({ role }) {
             <span>{isGov ? 'واجهة الجهات الحكومية' : 'مشروع هاكاثون Vibe Coding 2026'}</span>
           </div>
 
+          
           <h1 style={s.heroTitle} className="hero-title">
+          <img src="public\أولى.png" alt="أولى" style={{ width: 80, height: 80, marginBottom: 16 }} />
             <span style={{ display: 'block', fontSize: 'clamp(14px, 2vw, 18px)', fontWeight: 400, color: 'rgba(255,255,255,0.4)', letterSpacing: 4, textTransform: 'uppercase', marginBottom: 12 }}>Smart Excavation Monitor</span>
             أولى <span style={{ color: '#C5A656' }}>Awla</span>
           </h1>
