@@ -1,70 +1,83 @@
-# Getting Started with Create React App
+<div align="center">
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# 🚧 أولى | Awla
 
-## Available Scripts
+**نظام ذكي لإدارة بلاغات الحفريات وحساب أولوياتها في الرياض**  
+**AI-powered excavation permit reporting & priority scoring system for Riyadh**
 
-In the project directory, you can run:
+🔗 **[عرض مباشر | Live Demo](https://awla1.replit.app/)**
 
-### `npm start`
+</div>
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+-----
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 📌 عن المشروع | About
 
-### `npm test`
+**بالعربي:**  
+أولى هو إضافة مقترحة لتطبيق **مدينتي** التابع لأمانة الرياض، متخصصة في رصد بلاغات الحفريات وحساب أولوياتها تلقائياً — لضمان معالجة الحفريات الأكثر تأثيراً على المواطن أولاً.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+**In English:**  
+Awla is a proposed feature extension for **Mdinatyapp** by Amanah Riyadh, focused specifically on excavation monitoring. It automatically scores and ranks excavation reports by priority, ensuring the highest-impact cases are addressed first.
 
-### `npm run build`
+-----
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## ✨ المميزات | Features
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+|الميزة                                |Feature                                              |
+|--------------------------------------|-----------------------------------------------------|
+|رفع بلاغات الحفريات مع الموقع والتصنيف|Excavation report submission with location & category|
+|حساب أولوية كل حفرية تلقائياً          |Automatic AI priority scoring per excavation         |
+|متابعة حالة البلاغ بعد الرفع          |Real-time status tracking                            |
+|لوحة تحكم مرتبة حسب الأولوية          |Priority-ranked dashboard view                       |
+|واجهة تعمل على الجوال والكمبيوتر      |Fully responsive UI                                  |
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+-----
 
-### `npm run eject`
+## 🧠 آلية حساب الأولوية | Priority Score Logic
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+كل بلاغ حفرية يحصل على نقاط بناءً على:  
+Each excavation report is scored based on:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. **نوع الحفرية | Excavation Type** — بعض الأنواع تأخذ وزناً أعلى بناءً على خطورتها | Some types carry higher base weights based on risk level
+1. **الكثافة الجغرافية | Geographic Density** — الحفريات المتكررة في نفس المنطقة ترفع الأولوية | Clustered excavations in the same area boost priority
+1. **التكرار | Recurrence** — كلما تكرر البلاغ، ارتفعت درجته | Repeated reports increase the score over time
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+-----
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 🛠️ التقنيات | Tech Stack
 
-## Learn More
+|الطبقة  |التقنية |
+|--------|--------|
+|Frontend|React.js|
+|Hosting |Replit  |
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+-----
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 🚀 تشغيل المشروع | Getting Started
 
-### Code Splitting
+```bash
+# استنساخ المستودع | Clone the repository
+git clone https://github.com/Maramjamaan/balagh-thaki.git
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+# تثبيت المكتبات | Install dependencies
+cd balagh-thaki
+npm install
 
-### Analyzing the Bundle Size
+# تشغيل الخادم المحلي | Run the development server
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+-----
 
-### Making a Progressive Web App
+## 👥 الفريق | Team
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+**فريق أولى | Team Awla**  
+بُني بشغف خلال هاكاثون Vibe Coding 2026 من تنظيم أكاديمية طويق.  
+Built during Vibe Coding Hackathon 2026, hosted by Tuwaiq Academy.
 
-### Advanced Configuration
+-----
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## 📄 الترخيص | License
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+تم تطوير هذا المشروع في إطار هاكاثون. يسعدنا أي مساهمة أو بناء عليه.  
+Developed as part of a hackathon. Feel free to explore and build on it.
